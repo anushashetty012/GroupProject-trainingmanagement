@@ -22,19 +22,6 @@ public class SuperAdminController
     @Autowired
     SuperAdminService superAdminService;
 
-
-//
-//    @PostMapping("/registerSuperAdmin")
-//    public ResponseEntity<String> registerSuperAdmin(@RequestBody Employee employee)
-//    {
-//        String registerStatus = superAdminRepository.registerUser(employee);
-//        if (registerStatus == null)
-//        {
-//            return ResponseEntity.status(HttpStatus.NOT_MODIFIED).build();
-//        }
-//        return ResponseEntity.of(Optional.of( " Registration sucessful"));
-//    }
-
     @PostMapping("/registerEmployees")
     @PreAuthorize("hasRole('super_admin')")
     public ResponseEntity<String> registerEmployees(@RequestBody Employee employee)
@@ -42,7 +29,7 @@ public class SuperAdminController
         Employee registerStatus = superAdminService.registerNewEmployee(employee);
         if (registerStatus == null)
         {
-            return ResponseEntity.status(HttpStatus.NOT_MODIFIED).build();
+            return new ResponseEntity<>("Employee already exist", HttpStatus.NOT_FOUND);
         }
         return ResponseEntity.of(Optional.of( " Registration successful"));
     }

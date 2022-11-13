@@ -7,8 +7,9 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import trainingmanagement.TrainingManagement.entity.Course;
-import trainingmanagement.TrainingManagement.entity.Employee;
+import trainingmanagement.TrainingManagement.request.FilterByDate;
 import trainingmanagement.TrainingManagement.response.CourseInfo;
+import trainingmanagement.TrainingManagement.response.EmployeeDetails;
 import trainingmanagement.TrainingManagement.response.EmployeeInvite;
 import trainingmanagement.TrainingManagement.request.MultipleEmployeeRequest;
 import trainingmanagement.TrainingManagement.response.EmployeeProfile;
@@ -22,31 +23,6 @@ public class CommonController
 {
     @Autowired
     CommonService commonService;
-    //changes
-    @GetMapping("count/acceptedInvites/{courseId}")
-    @PreAuthorize("hasRole('admin') or hasRole('manager') or hasRole('employee')")
-    public ResponseEntity<?> getAcceptedCount(@PathVariable int courseId,Authentication authentication)
-    {
-        int count = commonService.getAcceptedCount(courseId,authentication.getName());
-        if (count == 0)
-        {
-            return new ResponseEntity<>("There are no attendees to this course or this course is not allocated to you",HttpStatus.NOT_FOUND);
-        }
-        return ResponseEntity.of(Optional.of(count));
-    }
-
-    @GetMapping("/courseDetails/{courseId}")
-    @PreAuthorize("hasRole('admin') or hasRole('manager') or hasRole('employee')")
-    public ResponseEntity<?> viewCourseDetails(@PathVariable int courseId,Authentication authentication)
-    {
-        CourseInfo courseData = commonService.viewCourseDetails(courseId,authentication.getName());
-        if (courseData == null)
-        {
-            return new ResponseEntity<>("No such course is allocated to you",HttpStatus.NOT_FOUND);
-        }
-        return ResponseEntity.of(Optional.of(courseData));
-    }
-
     @GetMapping("/attendees_nonAttendees_count/{courseId}")
     @PreAuthorize("hasRole('admin') or hasRole('manager')")
     public ResponseEntity<?> getAttendeesAndNonAttendeesCount(@PathVariable int courseId,Authentication authentication)
@@ -119,5 +95,50 @@ public class CommonController
         }
         return ResponseEntity.of(Optional.of(deleteStatus));
     }
+
+    //omkar and sudarshan
+    //Get List of All Employees
+    @GetMapping("/employees")
+    @PreAuthorize("hasRole('admin') or hasRole('manager')")
+
+    public ResponseEntity<List<EmployeeDetails>> getEmployeeList(Authentication authentication)
+    {
+        String empId = authentication.getName();
+
+        List<EmployeeDetails> empData = commonService.employeeDetails(empId);
+        if (empData.size() == 0)
+        {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+        return ResponseEntity.of(Optional.of(empData));
+    }
+
+
+    @GetMapping("/employees/{searchKey}")
+    @PreAuthorize("hasRole('admin') or hasRole('manager')")
+    public ResponseEntity<List<EmployeeDetails>> getEmployeeListBySearchKey(Authentication authentication, @PathVariable String searchKey)
+    {
+        String empId = authentication.getName();
+
+        List<EmployeeDetails> empData = commonService.employeeDetailsBySearchKey(empId,searchKey);
+        if (empData.size() == 0)
+        {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+        return ResponseEntity.of(Optional.of(empData));
+    }
+    @GetMapping("/course/filter")
+    @PreAuthorize("hasRole('admin') or hasRole('manager')")
+    public ResponseEntity<List<Course>> filterCourse(Authentication authentication, @RequestBody FilterByDate filter){
+        String empID = authentication.getName();
+
+        List<Course> filteredCourseList = commonService.filteredCourses(empID,filter);
+        if (filteredCourseList.size() == 0)
+        {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+        return ResponseEntity.of(Optional.of(filteredCourseList));
+    }
+
 }
 

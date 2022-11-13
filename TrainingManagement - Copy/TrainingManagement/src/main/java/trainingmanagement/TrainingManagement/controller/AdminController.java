@@ -6,10 +6,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import trainingmanagement.TrainingManagement.entity.Course;
-import trainingmanagement.TrainingManagement.entity.Employee;
 import trainingmanagement.TrainingManagement.request.MultipleEmployeeRequest;
 import trainingmanagement.TrainingManagement.response.CourseList;
-import trainingmanagement.TrainingManagement.response.EmployeeDetail;
+import trainingmanagement.TrainingManagement.response.EmployeeInfo;
 import trainingmanagement.TrainingManagement.service.AdminService;
 
 import java.util.List;
@@ -92,7 +91,7 @@ public class AdminController
         Map<Integer,List<CourseList>> courseList = adminRepository.getCourseToAssignManager(page,limit);
         if (courseList == null)
         {
-            return new ResponseEntity<>("No upcoming course in the company, create a course to assign to manager",HttpStatus.NOT_FOUND);
+            return new ResponseEntity<>("No more upcoming course in the company, create a course to assign to manager",HttpStatus.NOT_FOUND);
         }
         return ResponseEntity.of(Optional.of(courseList));
     }
@@ -101,10 +100,10 @@ public class AdminController
     @PreAuthorize("hasRole('admin')")
     public ResponseEntity<?> getManagers(@RequestParam int page, @RequestParam int limit)
     {
-        Map<Integer,List<EmployeeDetail>> managers = adminRepository.getManagers(page,limit);
+        Map<Integer,List<EmployeeInfo>> managers = adminRepository.getManagers(page,limit);
         if (managers == null)
         {
-            return new ResponseEntity<>("No managers in the company",HttpStatus.NOT_FOUND);
+            return new ResponseEntity<>("No more managers in the company",HttpStatus.NOT_FOUND);
         }
         return ResponseEntity.of(Optional.of(managers));
     }
@@ -121,8 +120,43 @@ public class AdminController
         return ResponseEntity.of(Optional.of(assignStatus));
     }
 
-    //Omkar
+//    //Omkar
+//    @GetMapping("/getCourseCount/{empId}")
+//    @PreAuthorize("hasRole('admin')")
+//    public ResponseEntity<EmployeeList> getEmployeeCourseCount(@PathVariable String empId){
+//        EmployeeList employeeList = adminRepository.getCountOfCourses(empId);
+//
+//        if(employeeList == null){
+//            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+//        }
+//        return ResponseEntity.of(Optional.of(employeeList));
+//    }
+//
+//
+//    //Delete Attendees from Invites for an Upcoming Course
+//    @PutMapping("/removeAttendees")
+//    @PreAuthorize("hasRole('admin')")
+//    public ResponseEntity<String> removeAttendees(@PathVariable String empId, @PathVariable String courseId){
+//        String removed = adminRepository.deleteAttendeeFromUpcomingCourse(empId,courseId);
+//
+//        if (removed == null){
+//            return ResponseEntity.status(HttpStatus.NOT_MODIFIED).build();
+//        }
+//        return ResponseEntity.of(Optional.of(removed));
+//    }
 
+
+//11-11-2022
+
+    @PatchMapping("/update/course")
+    @PreAuthorize("hasRole('admin')")
+    public ResponseEntity<Integer> updateCourse(@RequestBody Course course){
+        int updatedCourse = adminRepository.updateCourse(course);
+        if(updatedCourse == 0){
+            return ResponseEntity.status(HttpStatus.NOT_MODIFIED).build();
+        }
+        return ResponseEntity.of(Optional.of(updatedCourse));
+    }
 
 
 

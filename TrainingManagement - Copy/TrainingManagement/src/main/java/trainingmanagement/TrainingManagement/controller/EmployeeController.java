@@ -6,7 +6,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import trainingmanagement.TrainingManagement.entity.Course;
+import trainingmanagement.TrainingManagement.request.FilterByDate;
 import trainingmanagement.TrainingManagement.response.AttendedNonAttendedCourse;
+import trainingmanagement.TrainingManagement.response.CourseInfo;
 import trainingmanagement.TrainingManagement.response.EmployeeProfile;
 import trainingmanagement.TrainingManagement.response.RejectedResponse;
 import trainingmanagement.TrainingManagement.service.EmployeeService;
@@ -15,11 +18,35 @@ import java.util.List;
 import java.util.Optional;
 
 @RestController
+@RequestMapping("/employee")
 public class EmployeeController
 {
     @Autowired
     EmployeeService employeeService;
 
+    @GetMapping("count/acceptedInvites/{courseId}")
+    @PreAuthorize("hasRole('admin') or hasRole('manager') or hasRole('employee')")
+    public ResponseEntity<?> getAcceptedCount(@PathVariable int courseId,Authentication authentication)
+    {
+        int count = employeeService.getAcceptedCount(courseId,authentication.getName());
+        if (count == 0)
+        {
+            return new ResponseEntity<>("There are no attendees to this course or this course is not allocated to you",HttpStatus.NOT_FOUND);
+        }
+        return ResponseEntity.of(Optional.of(count));
+    }
+
+    @GetMapping("/courseDetails/{courseId}")
+    @PreAuthorize("hasRole('admin') or hasRole('manager') or hasRole('employee')")
+    public ResponseEntity<?> viewCourseDetails(@PathVariable int courseId,Authentication authentication)
+    {
+        CourseInfo courseData = employeeService.viewCourseDetails(courseId,authentication.getName());
+        if (courseData == null)
+        {
+            return new ResponseEntity<>("No such course is allocated to you",HttpStatus.NOT_FOUND);
+        }
+        return ResponseEntity.of(Optional.of(courseData));
+    }
     @PutMapping("/acceptInvite/{inviteId}")
     @PreAuthorize("hasRole('admin') or hasRole('manager') or hasRole('employee')")
     public ResponseEntity<?> acceptInvite(@PathVariable int inviteId)
@@ -67,5 +94,26 @@ public class EmployeeController
         }
         return ResponseEntity.of(Optional.of(attendedNonAttendedCourses));
     }
+    //Omkar
+    //filtering based on employee profile
+    @GetMapping("/acceptedCourses/filter")
+    @PreAuthorize("hasRole('admin') or hasRole('manager') or hasRole('employee')")
+    public ResponseEntity<List<Course>> filterCourses(Authentication authentication, @RequestBody FilterByDate filter){
+        String empId = authentication.getName();
+        List<Course> courseList = employeeService.filterCourse(filter,empId);
+        if(courseList.size() == 0){
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+        return ResponseEntity.of(Optional.of(courseList));
+    }
 
+
+    //Get count of Course completion status
+    @GetMapping("/course/count/{completionStatus}")
+    @PreAuthorize("hasRole('admin') or hasRole('manager') or hasRole('employee')")
+    public ResponseEntity<Integer> getCourseStatusCount(Authentication authentication, @PathVariable String completionStatus){
+        String empId = authentication.getName();
+        int count = employeeService.getCourseStatusCountForEmployee(empId,completionStatus);
+        return ResponseEntity.of(Optional.of(count));
+    }
 }

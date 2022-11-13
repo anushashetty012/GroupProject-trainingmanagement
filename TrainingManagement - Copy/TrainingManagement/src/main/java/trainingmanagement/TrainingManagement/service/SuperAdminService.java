@@ -49,7 +49,10 @@ public class SuperAdminService {
         message.setText(emailText);
         message.setSubject("Login credentials for Training management website");
         mailSender.send(message);
-
+        if(employee.getEmpId().equalsIgnoreCase("RT001"))
+        {
+            return null;
+        }
         employee.setPassword(getEncodedPassword(employee.getPassword()));
 
         return employeeDao.save(employee);
@@ -62,7 +65,8 @@ public class SuperAdminService {
     }
 
 
-    public String getEncodedPassword(String password) {
+    public String getEncodedPassword(String password)
+    {
         return passwordEncoder.encode(password);
     }
 

@@ -2,12 +2,14 @@ package trainingmanagement.TrainingManagement.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataAccessException;
+import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
-import trainingmanagement.TrainingManagement.response.AcceptedOrRejectedResponse;
-import trainingmanagement.TrainingManagement.response.AttendedNonAttendedCourse;
-import trainingmanagement.TrainingManagement.response.EmployeeProfile;
-import trainingmanagement.TrainingManagement.response.RejectedResponse;
+import trainingmanagement.TrainingManagement.entity.Course;
+import trainingmanagement.TrainingManagement.entity.Invites;
+import trainingmanagement.TrainingManagement.entity.ManagersCourses;
+import trainingmanagement.TrainingManagement.request.FilterByDate;
+import trainingmanagement.TrainingManagement.response.*;
 
 import java.util.List;
 
@@ -16,6 +18,102 @@ public class EmployeeService
 {
     @Autowired
     JdbcTemplate jdbcTemplate;
+    private String GET_ACCEPTED_COUNT = "SELECT COUNT(empId) FROM AcceptedInvites WHERE courseId=? and deleteStatus=false";
+    //for admin
+    private String VIEW_COURSE_DETAILS = "SELECT courseId,courseName,trainer,trainingMode,startDate,endDate,duration,startTime,endTime,completionStatus,meetingInfo FROM Course WHERE courseId=? and deleteStatus=false";
+    //for manager
+    private String CHECK_COURSE_ALLOCATION = "SELECT courseId FROM ManagersCourses WHERE managerId=? AND courseId=?";
+    private String CHECK_IF_INVITED = "SELECT courseId FROM Invites where empId=? AND courseId=? and (acceptanceStatus=true or acceptanceStatus is null)";
+    private String GET_ROLE = "SELECT role_name FROM employee_role WHERE emp_id=?";
+    //to get role
+    public String getRole(String empId)
+    {
+        return jdbcTemplate.queryForObject(GET_ROLE,new Object[]{empId},String.class);
+    }
+    public int getAcceptedCount(int courseId,String empId)
+    {
+        if(getRole((empId)).equalsIgnoreCase("admin"))
+        {
+            return jdbcTemplate.queryForObject(GET_ACCEPTED_COUNT, new Object[]{courseId},Integer.class);
+        }
+        if (getRole((empId)).equalsIgnoreCase("manager"))
+        {
+            List<Invites> isInvited = jdbcTemplate.query(CHECK_IF_INVITED,(rs, rowNum) -> {
+                return new Invites(rs.getInt("courseId"));
+            },empId,courseId);
+
+            List<ManagersCourses> isCourseAssigned = jdbcTemplate.query(CHECK_COURSE_ALLOCATION,(rs, rowNum) -> {
+                return new ManagersCourses(rs.getInt("courseId"));
+            },empId,courseId);
+            if (isCourseAssigned.size()!=0 || isInvited.size()!=0)
+            {
+                return jdbcTemplate.queryForObject(GET_ACCEPTED_COUNT, new Object[]{courseId},Integer.class);
+            }
+        }
+        if (getRole((empId)).equalsIgnoreCase("employee"))
+        {
+            List<Invites> isInvited = jdbcTemplate.query(CHECK_IF_INVITED,(rs, rowNum) -> {
+                return new Invites(rs.getInt("courseId"));
+            },empId,courseId);
+            if (isInvited.size()!=0)
+            {
+                return jdbcTemplate.queryForObject(GET_ACCEPTED_COUNT, new Object[]{courseId},Integer.class);
+            }
+        }
+        return 0;
+    }
+    public CourseInfo viewCourseDetails(int courseId, String empId)
+    {
+        if(getRole((empId)).equalsIgnoreCase("admin"))
+        {
+            try
+            {
+                return jdbcTemplate.queryForObject(VIEW_COURSE_DETAILS,(rs, rowNum) -> {
+                    return new CourseInfo(rs.getInt("courseId"),rs.getString("courseName"),rs.getString("trainer"),rs.getString("trainingMode"),rs.getDate("startDate"),rs.getDate("endDate"),rs.getTime("duration"),rs.getTime("startTime"),rs.getTime("endTime"),rs.getString("completionStatus"),rs.getString("meetingInfo"));
+                },courseId);
+            }
+            catch (DataAccessException e)
+            {
+                return null;
+            }
+        }
+        if (getRole((empId)).equalsIgnoreCase("manager"))
+        {
+            List<Invites> isInvited = jdbcTemplate.query(CHECK_IF_INVITED,(rs, rowNum) -> {
+                return new Invites(rs.getInt("courseId"));
+            },empId,courseId);
+
+            List<ManagersCourses> isCourseAssigned = jdbcTemplate.query(CHECK_COURSE_ALLOCATION,(rs, rowNum) -> {
+                return new ManagersCourses(rs.getInt("courseId"));
+            },empId,courseId);
+            if (isCourseAssigned.size()!=0 || isInvited.size()!=0)
+            {
+                return jdbcTemplate.queryForObject(VIEW_COURSE_DETAILS,(rs, rowNum) -> {
+                    return new CourseInfo(rs.getInt("courseId"),rs.getString("courseName"),rs.getString("trainer"),rs.getString("trainingMode"),rs.getDate("startDate"),rs.getDate("endDate"),rs.getTime("duration"),rs.getTime("startTime"),rs.getTime("endTime"),rs.getString("completionStatus"),rs.getString("meetingInfo"));
+                },courseId);
+            }
+        }
+        if (getRole((empId)).equalsIgnoreCase("employee"))
+        {
+            try
+            {
+                List<Invites> isInvited = jdbcTemplate.query(CHECK_IF_INVITED,(rs, rowNum) -> {
+                    return new Invites(rs.getInt("courseId"));
+                },empId,courseId);
+                if (isInvited.size()!=0)
+                {
+                    return jdbcTemplate.queryForObject(VIEW_COURSE_DETAILS,(rs, rowNum) -> {
+                        return new CourseInfo(rs.getInt("courseId"),rs.getString("courseName"),rs.getString("trainer"),rs.getString("trainingMode"),rs.getDate("startDate"),rs.getDate("endDate"),rs.getTime("duration"),rs.getTime("startTime"),rs.getTime("endTime"),rs.getString("completionStatus"),rs.getString("meetingInfo"));
+                    },courseId);
+                }
+            }
+            catch (DataAccessException e)
+            {
+                return null;
+            }
+        }
+        return null;
+    }
 
     public String acceptInvite(int inviteId)
     {
@@ -86,4 +184,36 @@ public class EmployeeService
 //            return jdbcTemplate.query()
 //        }
 //    }
+
+
+    //Omkar
+
+    //Filter Accepted invites by Completed status based on date
+    public List<Course> filterCourse(FilterByDate filter, String empId){
+        if(filter.getCompletionStatus().matches("active|upcoming")){
+            return filterCoursesForEmployeeByActiveOrUpcomingStatus(filter,empId);
+        }
+        return filterCoursesForEmployeeByCompletedStatus(filter,empId);
+    }
+    //Filter for Active and Upcoming Courses from Accepted Invites by Employee
+    public List<Course> filterCoursesForEmployeeByActiveOrUpcomingStatus(FilterByDate filter, String empId){
+        String query = "SELECT course.courseId,courseName,trainer,trainingMode,startDate,endDate,duration,startTime,endTime,completionStatus FROM Course, AcceptedInvites WHERE course.courseId = AcceptedInvites.courseID AND empId = ? AND AcceptedInvites.deleteStatus = 0 AND Course.completionStatus = ? AND (startDate >= ? and startDate <= ? )";
+        return jdbcTemplate.query(query,new BeanPropertyRowMapper<Course>(Course.class),empId,filter.getCompletionStatus(),filter.getDownDate(),filter.getTopDate());
+    }
+
+    //Filter for Completed Courses from Accepted Invites by Employee
+    public List<Course> filterCoursesForEmployeeByCompletedStatus(FilterByDate filter, String empId){
+        String query = "SELECT course.courseId,courseName,trainer,trainingMode,startDate,endDate,duration,startTime,endTime,completionStatus FROM Course, AcceptedInvites WHERE course.courseId = AcceptedInvites.courseID AND empId = ? AND AcceptedInvites.deleteStatus = 0 AND Course.completionStatus = ? AND (endDate >= ? and endDate <= ? )";
+        System.out.println(filter.getDownDate());
+        System.out.println(filter.getTopDate());
+        return jdbcTemplate.query(query,new BeanPropertyRowMapper<Course>(Course.class),empId,filter.getCompletionStatus(),filter.getDownDate(),filter.getTopDate());
+    }
+
+
+
+    //Get Count of Courses that employee has accepted the request based on completion status
+    public int getCourseStatusCountForEmployee(String empId, String completionStatus){
+        String query = "select count(acceptedinvites.courseId) from acceptedinvites, course where acceptedinvites.courseId = course.courseId and course.completionStatus = ? and empId = ? ";
+        return jdbcTemplate.queryForObject(query, Integer.class,completionStatus,empId);
+    }
 }

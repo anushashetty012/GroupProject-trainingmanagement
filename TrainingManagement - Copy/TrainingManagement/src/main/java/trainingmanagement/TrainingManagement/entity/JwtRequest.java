@@ -5,17 +5,6 @@ public class JwtRequest {
     private String empId;
     private String password;
 
-
-    //Getter and Setter
-//    public String getEmpName() {
-//        return empName;
-//    }
-//
-//    public void setEmpName(String empName) {
-//        this.empName = empName;
-//    }
-
-
     public String getEmpId() {
         return empId;
     }

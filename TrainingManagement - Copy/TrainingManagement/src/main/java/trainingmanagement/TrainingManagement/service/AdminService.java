@@ -1,15 +1,13 @@
 package trainingmanagement.TrainingManagement.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 import trainingmanagement.TrainingManagement.entity.Course;
-import trainingmanagement.TrainingManagement.entity.Employee;
 import trainingmanagement.TrainingManagement.entity.ManagersCourses;
 import trainingmanagement.TrainingManagement.request.MultipleEmployeeRequest;
 import trainingmanagement.TrainingManagement.response.CourseList;
-import trainingmanagement.TrainingManagement.response.EmployeeDetail;
+import trainingmanagement.TrainingManagement.response.EmployeeInfo;
 
 import java.util.HashMap;
 import java.util.List;
@@ -77,12 +75,12 @@ public class AdminService
         return null;
     }
 
-    public Map<Integer,List<EmployeeDetail>> getManagers(int page, int limit)
+    public Map<Integer,List<EmployeeInfo>> getManagers(int page, int limit)
     {
         Map map = new HashMap<Integer,List>();
         offset = limit *(page-1);
-        List<EmployeeDetail> employeeDetails =  jdbcTemplate.query(GET_MANAGERS,(rs, rowNum) -> {
-            return new EmployeeDetail(rs.getString("emp_id"),rs.getString("emp_name"),rs.getString("designation"));
+        List<EmployeeInfo> employeeDetails =  jdbcTemplate.query(GET_MANAGERS,(rs, rowNum) -> {
+            return new EmployeeInfo(rs.getString("emp_id"),rs.getString("emp_name"),rs.getString("designation"));
         },offset,limit);
         if (employeeDetails.size() != 0)
         {
@@ -116,5 +114,12 @@ public class AdminService
             }
         }
         return "Course allocated successfully";
+    }
+    //omkar
+    //11-11-2022
+    //Update Existing Course
+    public int updateCourse(Course course){
+        String query = "update course set courseName =?, trainer=?, trainingMode=?, startDate=?, endDate =?, duration=?, startTime =?, endTime =?, meetingInfo=? where courseId = ? and deleteStatus=0";
+        return jdbcTemplate.update(query, course.getCourseName(),course.getTrainer(),course.getTrainingMode(),course.getStartDate(),course.getEndDate(),course.getDuration(),course.getStartTime(),course.getEndTime(),course.getMeetingInfo(),course.getCourseId());
     }
 }
