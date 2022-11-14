@@ -83,20 +83,20 @@ public class EmployeeController
 
     @GetMapping("/attendedCourse")
     @PreAuthorize("hasRole('admin') or hasRole('manager') or hasRole('employee')")
-    public ResponseEntity<?> attendedCourses(Authentication authentication)
+    public ResponseEntity<?> attendedCourses(Authentication authentication, @RequestParam int page, @RequestParam int limit)
     {
-        List<AttendedCourse> attendedNonAttendedCourses = employeeService.attendedCourse(authentication.getName());
+        Map<Integer,List<AttendedCourse>> attendedNonAttendedCourses = employeeService.attendedCourse(authentication.getName(),page, limit);
         if (attendedNonAttendedCourses == null)
         {
-            return new ResponseEntity<>("You did not attend any course", HttpStatus.NOT_FOUND);
+            return new ResponseEntity<>("You did not attend any course or there are no more course", HttpStatus.NOT_FOUND);
         }
         return ResponseEntity.of(Optional.of(attendedNonAttendedCourses));
     }
     @GetMapping("/nonAttendedCourse")
     @PreAuthorize("hasRole('admin') or hasRole('manager') or hasRole('employee')")
-    public ResponseEntity<?> NonAttendedCourses(Authentication authentication)
+    public ResponseEntity<?> NonAttendedCourses(Authentication authentication, @RequestParam int page, @RequestParam int limit)
     {
-        List<NonAttendedCourse> nonAttendedNonAttendedCourses = employeeService.nonAttendedCourse(authentication.getName());
+        Map<Integer,List<NonAttendedCourse>> nonAttendedNonAttendedCourses = employeeService.nonAttendedCourse(authentication.getName(), page, limit);
         if (nonAttendedNonAttendedCourses == null)
         {
             return new ResponseEntity<>("you do not have any courses", HttpStatus.NOT_FOUND);
@@ -107,10 +107,10 @@ public class EmployeeController
     //filtering based on employee profile
     @GetMapping("/acceptedCourses/filter")
     @PreAuthorize("hasRole('admin') or hasRole('manager') or hasRole('employee')")
-    public ResponseEntity<List<Course>> filterCourses(Authentication authentication, @RequestBody FilterByDate filter){
+    public ResponseEntity<?> filterCourses(Authentication authentication, @RequestBody FilterByDate filter, @RequestParam int page, @RequestParam int limit){
         String empId = authentication.getName();
-        List<Course> courseList = employeeService.filterCourse(filter,empId);
-        if(courseList.size() == 0){
+        Map<Integer,List<Course>> courseList = employeeService.filterCourse(filter,empId,page,limit);
+        if(courseList == null){
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
         return ResponseEntity.of(Optional.of(courseList));
@@ -131,7 +131,7 @@ public class EmployeeController
     public ResponseEntity<?> filterCoursesByStatus(Authentication authentication, @PathVariable String completionStatus,@RequestParam int page,@RequestParam int limit){
         String empId = authentication.getName();
         Map<Integer,List<Course>> courseList = employeeService.coursesForEmployeeByCompletedStatus(empId,completionStatus,page,limit);
-        if(courseList.size() == 0){
+        if(courseList == null){
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
         return ResponseEntity.of(Optional.of(courseList));

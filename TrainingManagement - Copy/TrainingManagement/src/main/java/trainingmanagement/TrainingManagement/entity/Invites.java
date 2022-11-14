@@ -11,7 +11,7 @@ public class Invites
     private String empId;
     private int courseId;
     private boolean acceptanceStatus;
-    private boolean notificationCount;
+    private boolean notificationSentStatus;
 
     public Invites(int courseId)
     {
