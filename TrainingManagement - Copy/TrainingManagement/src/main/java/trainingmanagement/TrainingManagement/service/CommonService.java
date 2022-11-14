@@ -60,11 +60,34 @@ public class CommonService
         return jdbcTemplate.queryForObject(GET_ROLE,new Object[]{empId},String.class);
     }
 
-    public String getAttendeesAndNonAttendeesCount(int courseId,String empId)
+    public String getAttendeesAndNonAttendeesForAdmin(int courseId)
     {
-        if(getRole((empId)).equalsIgnoreCase("admin"))
+        try
         {
-            try
+            int attendeesCount = jdbcTemplate.queryForObject(GET_ATTENDEES_COUNT,new Object[]{courseId},Integer.class);
+            int nonAttendeesCount = jdbcTemplate.queryForObject(GET_NON_ATTENDEES_COUNT,new Object[]{courseId},Integer.class);
+            String completionStatus = jdbcTemplate.queryForObject(GET_COMPLETION_STATUS,new Object[]{courseId},String.class);
+            if (completionStatus.equalsIgnoreCase("active") || completionStatus.equalsIgnoreCase("upcoming"))
+            {
+
+                return "Attendees: "+attendeesCount;
+            }
+            return "Attendees: "+attendeesCount+"\nNon Attendees: "+nonAttendeesCount;
+        }
+        catch (DataAccessException e)
+        {
+            return "No such courseId exist";
+        }
+    }
+
+    public String getAttendeesAndNonAttendeesForManager(int courseId, String empId)
+    {
+        try
+        {
+            List<ManagersCourses> isCourseAssigned = jdbcTemplate.query(CHECK_COURSE_ALLOCATION, (rs, rowNum) -> {
+                return new ManagersCourses(rs.getInt("courseId"));
+            }, empId, courseId);
+            if (isCourseAssigned.size() != 0)
             {
                 int attendeesCount = jdbcTemplate.queryForObject(GET_ATTENDEES_COUNT,new Object[]{courseId},Integer.class);
                 int nonAttendeesCount = jdbcTemplate.queryForObject(GET_NON_ATTENDEES_COUNT,new Object[]{courseId},Integer.class);
@@ -75,117 +98,136 @@ public class CommonService
                 }
                 return "Attendees: "+attendeesCount+"\nNon Attendees: "+nonAttendeesCount;
             }
-            catch (DataAccessException e)
-            {
-                return "No such courseId exist";
-            }
-
         }
-        if (getRole((empId)).equalsIgnoreCase("manager"))
+        catch (DataAccessException e)
         {
-            try
-            {
-                List<ManagersCourses> isCourseAssigned = jdbcTemplate.query(CHECK_COURSE_ALLOCATION, (rs, rowNum) -> {
-                    return new ManagersCourses(rs.getInt("courseId"));
-                }, empId, courseId);
-                if (isCourseAssigned.size() != 0)
-                {
-                    int attendeesCount = jdbcTemplate.queryForObject(GET_ATTENDEES_COUNT,new Object[]{courseId},Integer.class);
-                    int nonAttendeesCount = jdbcTemplate.queryForObject(GET_NON_ATTENDEES_COUNT,new Object[]{courseId},Integer.class);
-                    String completionStatus = jdbcTemplate.queryForObject(GET_COMPLETION_STATUS,new Object[]{courseId},String.class);
-                    if (completionStatus.equalsIgnoreCase("active") || completionStatus.equalsIgnoreCase("upcoming"))
-                    {
-                        return "Attendees: "+attendeesCount;
-                    }
-                    return "Attendees: "+attendeesCount+"\nNon Attendees: "+nonAttendeesCount;
-                }
-            }
-            catch (DataAccessException e)
-            {
-                return "No such courseId exist";
-            }
+            return "No such courseId exist";
         }
         return null;
     }
+    public String getAttendeesAndNonAttendeesCount(int courseId,String empId)
+    {
+        if(getRole((empId)).equalsIgnoreCase("admin"))
+        {
+            String employeeCount = getAttendeesAndNonAttendeesForAdmin(courseId);
+            return employeeCount;
+        }
+        if (getRole((empId)).equalsIgnoreCase("manager"))
+        {
+            String employeeCount = getAttendeesAndNonAttendeesForManager(courseId,empId);
+            return employeeCount;
+        }
+        return null;
+    }
+
+    public Map<Integer,List<EmployeeProfile>> attendingEmployeeForAdmin(int courseId,int offset,int limit,Map<Integer,List<EmployeeProfile>> map)
+    {
+        List<EmployeeProfile> employeeProfileList = jdbcTemplate.query(GET_ATTENDEES,(rs, rowNum) -> {
+            return new EmployeeProfile(rs.getString("emp_id"),rs.getString("emp_name"),rs.getString("designation"),rs.getString("profile_pic"));
+        },courseId,offset,limit);
+        if (employeeProfileList.size()!=0)
+        {
+            map.put(employeeProfileList.size(),employeeProfileList);
+            return map;
+        }
+        return null;
+    }
+    public Map<Integer,List<EmployeeProfile>> attendingEmployeeForManager(int courseId,String empId,int offset,int limit,Map<Integer,List<EmployeeProfile>> map)
+    {
+        try
+        {
+            List<ManagersCourses> isCourseAssigned = jdbcTemplate.query(CHECK_COURSE_ALLOCATION, (rs, rowNum) -> {
+                return new ManagersCourses(rs.getInt("courseId"));
+            }, empId, courseId);
+            if (isCourseAssigned.size() != 0 )
+            {
+                List<EmployeeProfile> employeeProfileList = jdbcTemplate.query(GET_ATTENDEES,(rs, rowNum) -> {
+                    return new EmployeeProfile(rs.getString("emp_id"),rs.getString("emp_name"),rs.getString("designation"),rs.getString("profile_pic"));
+                },courseId,offset,limit);
+                if (employeeProfileList.size()!=0)
+                {
+                    map.put(employeeProfileList.size(),employeeProfileList);
+                    return map;
+                }
+            }
+        }
+        catch (DataAccessException e)
+        {
+            return null;
+        }
+        return null;
+    }
+
     public Map<Integer,List<EmployeeProfile>> getAttendingEmployee(int courseId, String empId,int page,int limit)
     {
         Map map = new HashMap<Integer,List>();
         offset = limit *(page-1);
         if(getRole((empId)).equalsIgnoreCase("admin"))
         {
-            List<EmployeeProfile> employeeProfileList = jdbcTemplate.query(GET_ATTENDEES,(rs, rowNum) -> {
-                return new EmployeeProfile(rs.getString("emp_id"),rs.getString("emp_name"),rs.getString("designation"),rs.getString("profile_pic"));
-            },courseId,offset,limit);
-            if (employeeProfileList.size()!=0)
-            {
-                map.put(employeeProfileList.size(),employeeProfileList);
-                return map;
-            }
+            Map<Integer,List<EmployeeProfile>> attendingEmployee = attendingEmployeeForAdmin(courseId,offset,limit,map);
+            return attendingEmployee;
         }
         if (getRole((empId)).equalsIgnoreCase("manager"))
         {
-            try
-            {
-                List<ManagersCourses> isCourseAssigned = jdbcTemplate.query(CHECK_COURSE_ALLOCATION, (rs, rowNum) -> {
-                    return new ManagersCourses(rs.getInt("courseId"));
-                }, empId, courseId);
-                if (isCourseAssigned.size() != 0 )
-                {
-                    List<EmployeeProfile> employeeProfileList = jdbcTemplate.query(GET_ATTENDEES,(rs, rowNum) -> {
-                        return new EmployeeProfile(rs.getString("emp_id"),rs.getString("emp_name"),rs.getString("designation"),rs.getString("profile_pic"));
-                    },courseId,offset,limit);
-                    if (employeeProfileList.size()!=0)
-                    {
-                        map.put(employeeProfileList.size(),employeeProfileList);
-                        return map;
-                    }
-                }
-            }
-            catch (DataAccessException e)
-            {
-                return null;
-            }
+            Map<Integer,List<EmployeeProfile>> attendingEmployee = attendingEmployeeForManager(courseId,empId,offset,limit,map);
+            return attendingEmployee;
         }
         return null;
     }
+
+    //non attending employee
+    public Map<Integer,List<EmployeeProfile>> nonAttendingEmployeeForAdmin(int courseId,int offset,int limit,Map<Integer,List<EmployeeProfile>> map)
+    {
+        List<EmployeeProfile> employeeProfileList = jdbcTemplate.query(GET_NON_ATTENDEES,(rs, rowNum) -> {
+            return new EmployeeProfile(rs.getString("emp_id"),rs.getString("emp_name"),rs.getString("designation"),rs.getString("profile_pic"));
+        },courseId,offset,limit);
+        if (employeeProfileList.size()!=0)
+        {
+            map.put(employeeProfileList.size(),employeeProfileList);
+            return map;
+        }
+        return null;
+    }
+
+    public Map<Integer,List<EmployeeProfile>> nonAttendingEmployeeForManager(int courseId,String empId,int offset,int limit,Map<Integer,List<EmployeeProfile>> map)
+    {
+        try
+        {
+            List<ManagersCourses> isCourseAssigned = jdbcTemplate.query(CHECK_COURSE_ALLOCATION, (rs, rowNum) -> {
+                return new ManagersCourses(rs.getInt("courseId"));
+            }, empId, courseId);
+            if (isCourseAssigned.size() != 0 )
+            {
+                List<EmployeeProfile> employeeProfileList = jdbcTemplate.query(GET_NON_ATTENDEES,(rs, rowNum) -> {
+                    return new EmployeeProfile(rs.getString("emp_id"),rs.getString("emp_name"),rs.getString("designation"),rs.getString("profile_pic"));
+                },courseId,offset,limit);
+                if (employeeProfileList.size()!=0)
+                {
+                    map.put(employeeProfileList.size(),employeeProfileList);
+                    return map;
+                }
+            }
+        }
+        catch (DataAccessException e)
+        {
+            return null;
+        }
+        return null;
+    }
+
     public Map<Integer,List<EmployeeProfile>> getNonAttendingEmployee(int courseId,String empId,int page,int limit)
     {
         Map map = new HashMap<Integer,List>();
         offset = limit *(page-1);
         if(getRole((empId)).equalsIgnoreCase("admin"))
         {
-            List<EmployeeProfile> employeeProfileList = jdbcTemplate.query(GET_NON_ATTENDEES,(rs, rowNum) -> {
-                return new EmployeeProfile(rs.getString("emp_id"),rs.getString("emp_name"),rs.getString("designation"),rs.getString("profile_pic"));
-            },courseId,offset,limit);
-            if (employeeProfileList.size()!=0)
-            {
-                map.put(employeeProfileList.size(),employeeProfileList);
-                return map;
-            }
+            Map<Integer,List<EmployeeProfile>> nonAttendingEmployee = nonAttendingEmployeeForAdmin(courseId,offset,limit,map);
+            return nonAttendingEmployee;
         }
         if (getRole((empId)).equalsIgnoreCase("manager"))
         {
-            try
-            {
-                List<ManagersCourses> isCourseAssigned = jdbcTemplate.query(CHECK_COURSE_ALLOCATION, (rs, rowNum) -> {
-                    return new ManagersCourses(rs.getInt("courseId"));
-                }, empId, courseId);
-                if (isCourseAssigned.size() != 0 )
-                {
-                    List<EmployeeProfile> employeeProfileList = jdbcTemplate.query(GET_NON_ATTENDEES,(rs, rowNum) -> {
-                        return new EmployeeProfile(rs.getString("emp_id"),rs.getString("emp_name"),rs.getString("designation"),rs.getString("profile_pic"));
-                    },courseId,offset,limit);
-                    if (employeeProfileList.size()!=0)
-                    {
-                        map.put(employeeProfileList.size(),employeeProfileList);
-                        return map;
-                    }
-                }
-            }
-            catch (DataAccessException e)
-            {
-                return null;
-            }
+            Map<Integer,List<EmployeeProfile>> nonAttendingEmployee = nonAttendingEmployeeForManager(courseId,empId,offset,limit,map);
+            return nonAttendingEmployee;
         }
         return null;
     }
@@ -308,12 +350,10 @@ public class CommonService
         return "Deleted invite successfully";
     }
 
-    //omkar
     public List<EmployeeDetails> mapEmployeeToCourseStatusCount(List<EmployeeDetails> employeeDetails)
     {
         for (EmployeeDetails e:employeeDetails)
         {
-
             String emp_Id=e.getEmpId();
             Integer var=getActiveCourseCountForEmployee(emp_Id);
             e.setActiveCount(var);
@@ -339,7 +379,6 @@ public class CommonService
             employeeDetails= employeeDetailsListForManager(empId);
         }
         return mapEmployeeToCourseStatusCount(employeeDetails);
-
     }
 
 
@@ -405,7 +444,7 @@ public class CommonService
 
 
 
-//Filter Course based on date and Completion status for Active and Upcoming
+    //Filter Course based on date and Completion status for Active and Upcoming
 
     public List<Course> FilterCoursesForAdminByActiveAndUpcomingStatus(FilterByDate filter){
         String query = "SELECT course.courseId,courseName,trainer,trainingMode,startDate,endDate,duration,startTime,endTime,completionStatus FROM Course WHERE completionStatus=? and deleteStatus=false and (startDate >= ? and startDate <= ? )";
@@ -450,4 +489,6 @@ public class CommonService
             return FilterCoursesForManagerByCompletedStatus(filter,empId);
         }
     }
+
+
 }

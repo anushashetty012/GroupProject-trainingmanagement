@@ -7,7 +7,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import trainingmanagement.TrainingManagement.entity.Employee;
 import trainingmanagement.TrainingManagement.entity.EmployeeRole;
-import trainingmanagement.TrainingManagement.repository.SuperAdminRepository;
 import trainingmanagement.TrainingManagement.service.SuperAdminService;
 
 import java.util.Optional;
@@ -16,9 +15,6 @@ import java.util.Optional;
 @RequestMapping("/superAdmin")
 public class SuperAdminController
 {
-    @Autowired
-    SuperAdminRepository superAdminRepository;
-
     @Autowired
     SuperAdminService superAdminService;
 

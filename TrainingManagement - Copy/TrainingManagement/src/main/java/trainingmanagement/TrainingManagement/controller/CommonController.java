@@ -54,7 +54,7 @@ public class CommonController
         Map<Integer,List<EmployeeProfile>> employee = commonService.getNonAttendingEmployee(courseId,authentication.getName(),page,limit);
         if (employee == null)
         {
-            return new ResponseEntity<>("This course is not allocated to you or there are no attendees for this course",HttpStatus.NOT_FOUND);
+            return new ResponseEntity<>("This course is not allocated to you or there are no non-attendees for this course",HttpStatus.NOT_FOUND);
         }
         return ResponseEntity.of(Optional.of(employee));
     }
