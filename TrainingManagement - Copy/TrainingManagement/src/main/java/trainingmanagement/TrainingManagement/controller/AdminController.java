@@ -85,7 +85,7 @@ public class AdminController
 
     //to allocate course to manager
     //displays list of upcoming courses
-    @GetMapping("/getAllCourse")
+    @GetMapping("/allCourse")
     @PreAuthorize("hasRole('admin')")
     public ResponseEntity<?> getCourseToAssignManager(@RequestParam int page, @RequestParam int limit)
     {
@@ -97,7 +97,7 @@ public class AdminController
         return ResponseEntity.of(Optional.of(courseList));
     }
     //gets the list of managers
-    @GetMapping("/getManagers")
+    @GetMapping("/managers")
     @PreAuthorize("hasRole('admin')")
     public ResponseEntity<?> getManagers(@RequestParam int page, @RequestParam int limit)
     {
@@ -108,6 +108,20 @@ public class AdminController
         }
         return ResponseEntity.of(Optional.of(managers));
     }
+
+    //search managers by search key
+    @GetMapping("/managersBySearchKey/{searchKey}")
+    @PreAuthorize("hasRole('admin')")
+    public ResponseEntity<?> getManagersBySearchKey(@RequestParam int page, @RequestParam int limit,@PathVariable String searchKey)
+    {
+        Map<Integer,List<EmployeeInfo>> managers = adminRepository.getManagersBySearchkey(page,limit,searchKey);
+        if (managers == null)
+        {
+            return new ResponseEntity<>("No more managers in the company",HttpStatus.NOT_FOUND);
+        }
+        return ResponseEntity.of(Optional.of(managers));
+    }
+
     //assigns course to managers
     @PostMapping("/assignCourseToManager/{courseId}")
     @PreAuthorize("hasRole('admin')")

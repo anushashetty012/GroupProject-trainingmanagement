@@ -369,6 +369,7 @@ public class CommonService
         String query = "SELECT COUNT(empId) FROM AcceptedInvites, Course WHERE course.courseId = AcceptedInvites.courseId and empId = ?  and course.completionStatus = 'upcoming' ";
         return jdbcTemplate.queryForObject(query, Integer.class,empId);
     }
+    //count of completed course
     public Integer getAttendedCourseCountForEmployee(String empId){
         String query = "SELECT COUNT(empId) FROM AcceptedInvites, Course WHERE course.courseId = AcceptedInvites.courseId and empId = ?  and course.completionStatus = 'completed' ";
         return jdbcTemplate.queryForObject(query, Integer.class,empId);
@@ -385,10 +386,10 @@ public class CommonService
             employeeDetails= employeeDetailsListForManagerBySearchKey(empId,searchKey);
         }
         return mapEmployeeToCourseStatusCount(employeeDetails);
-
     }
 
-    public List<EmployeeDetails> employeeDetailsListForAdminBySearchKey(String searchKey){
+    public List<EmployeeDetails> employeeDetailsListForAdminBySearchKey(String searchKey)
+    {
 
         String queryForEmployees = "SELECT emp_id, emp_name, designation FROM employee WHERE (emp_id = ? or emp_name like ? or designation like ?) and delete_status = 0 AND emp_id <> 'RT001' ";
         List<EmployeeDetails> a = jdbcTemplate.query(queryForEmployees,new BeanPropertyRowMapper<EmployeeDetails>(EmployeeDetails.class),searchKey,"%"+searchKey+"%","%"+searchKey+"%");

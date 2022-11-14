@@ -62,7 +62,6 @@ public class AdminService
         return "Course created successfully";
     }
 
-    //for inviting---change
 
 
     //to allocate managers to course
@@ -88,6 +87,22 @@ public class AdminService
         List<EmployeeInfo> employeeDetails =  jdbcTemplate.query(GET_MANAGERS,(rs, rowNum) -> {
             return new EmployeeInfo(rs.getString("emp_id"),rs.getString("emp_name"),rs.getString("designation"));
         },offset,limit);
+        if (employeeDetails.size() != 0)
+        {
+            map.put(employeeDetails.size(),employeeDetails);
+            return map;
+        }
+        return null;
+    }
+
+    public Map<Integer,List<EmployeeInfo>> getManagersBySearchkey(int page, int limit, String searchKey)
+    {
+        String GET_MANAGERS = "SELECT Employee.emp_Id,emp_Name,designation FROM Employee, employee_role WHERE Employee.emp_id = employee_role.emp_id and employee_role.role_name='manager' AND Employee.delete_status=false and (Employee.emp_id=? or Employee.emp_name like ? or Employee.designation like ?) LIMIT ?,?";
+        Map map = new HashMap<Integer,List>();
+        offset = limit *(page-1);
+        List<EmployeeInfo> employeeDetails =  jdbcTemplate.query(GET_MANAGERS,(rs, rowNum) -> {
+            return new EmployeeInfo(rs.getString("emp_id"),rs.getString("emp_name"),rs.getString("designation"));
+        },searchKey,"%"+searchKey+"%","%"+searchKey+"%",offset,limit);
         if (employeeDetails.size() != 0)
         {
             map.put(employeeDetails.size(),employeeDetails);
@@ -187,6 +202,4 @@ public class AdminService
             throw new ManagerEmployeeSameException("manager can't report to himself, remove managerId from empId List");
         }
     }
-
-
 }
