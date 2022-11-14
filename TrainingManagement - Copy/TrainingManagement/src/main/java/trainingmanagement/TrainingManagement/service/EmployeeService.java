@@ -163,12 +163,12 @@ public class EmployeeService
         }
     }
     //attended course
-    public List<AttendedNonAttendedCourse> attendedCourse(String empId)
+    public List<AttendedCourse> attendedCourse(String empId)
     {
         try
         {
             return jdbcTemplate.query("select Course.courseId,courseName,trainer,trainingMode,startDate,endDate from Course,AcceptedInvites where Course.courseId = AcceptedInvites.courseid and Course.completionStatus='completed' and AcceptedInvites.deleteStatus=false and AcceptedInvites.empId=?",(rs, rowNum) -> {
-                return new AttendedNonAttendedCourse(rs.getInt("courseId"),rs.getString("courseName"),rs.getString("trainer"),rs.getString("trainingMode"),rs.getDate("startDate"),rs.getDate("endDate"));
+                return new AttendedCourse(rs.getInt("courseId"),rs.getString("courseName"),rs.getString("trainer"),rs.getString("trainingMode"),rs.getDate("startDate"),rs.getDate("endDate"));
             },empId);
         }
         catch (DataAccessException e)
@@ -177,13 +177,19 @@ public class EmployeeService
         }
     }
 
-//    public List<AttendedNonAttendedCourse> nonAttendedCourse(String empId)
-//    {
-//        try
-//        {
-//            return jdbcTemplate.query()
-//        }
-//    }
+    public List<NonAttendedCourse> nonAttendedCourse(String empId)
+    {
+        try
+        {
+            return jdbcTemplate.query("select Course.courseId,courseName,trainer,trainingMode,startDate,endDate,reason from Course,RejectedInvites where Course.courseId = RejectedInvites.courseid  and RejectedInvites.empId=?",(rs, rowNum) -> {
+                return new NonAttendedCourse(rs.getInt("courseId"),rs.getString("courseName"),rs.getString("trainer"),rs.getString("trainingMode"),rs.getDate("startDate"),rs.getDate("endDate"),rs.getString("reason"));
+            },empId);
+        }
+        catch (DataAccessException e)
+        {
+            return null;
+        }
+    }
 
 
     //Omkar
@@ -195,17 +201,15 @@ public class EmployeeService
         }
         return filterCoursesForEmployeeByCompletedStatus(filter,empId);
     }
-    //Filter for Active and Upcoming Courses from Accepted Invites by Employee
+    //Filter for Active and Upcoming Courses from Accepted Invites by Employee by date and status
     public List<Course> filterCoursesForEmployeeByActiveOrUpcomingStatus(FilterByDate filter, String empId){
         String query = "SELECT course.courseId,courseName,trainer,trainingMode,startDate,endDate,duration,startTime,endTime,completionStatus FROM Course, AcceptedInvites WHERE course.courseId = AcceptedInvites.courseID AND empId = ? AND AcceptedInvites.deleteStatus = 0 AND Course.completionStatus = ? AND (startDate >= ? and startDate <= ? )";
         return jdbcTemplate.query(query,new BeanPropertyRowMapper<Course>(Course.class),empId,filter.getCompletionStatus(),filter.getDownDate(),filter.getTopDate());
     }
 
-    //Filter for Completed Courses from Accepted Invites by Employee
+    //Filter for Completed Courses from Accepted Invites by Employee by date and status
     public List<Course> filterCoursesForEmployeeByCompletedStatus(FilterByDate filter, String empId){
         String query = "SELECT course.courseId,courseName,trainer,trainingMode,startDate,endDate,duration,startTime,endTime,completionStatus FROM Course, AcceptedInvites WHERE course.courseId = AcceptedInvites.courseID AND empId = ? AND AcceptedInvites.deleteStatus = 0 AND Course.completionStatus = ? AND (endDate >= ? and endDate <= ? )";
-        System.out.println(filter.getDownDate());
-        System.out.println(filter.getTopDate());
         return jdbcTemplate.query(query,new BeanPropertyRowMapper<Course>(Course.class),empId,filter.getCompletionStatus(),filter.getDownDate(),filter.getTopDate());
     }
 
@@ -216,4 +220,20 @@ public class EmployeeService
         String query = "select count(acceptedinvites.courseId) from acceptedinvites, course where acceptedinvites.courseId = course.courseId and course.completionStatus = ? and empId = ? ";
         return jdbcTemplate.queryForObject(query, Integer.class,completionStatus,empId);
     }
+
+    //to retrieve invited courses based on completion status
+    public List<Course> coursesForEmployeeByCompletedStatus(String empId,String status)
+    {
+        String query = "SELECT course.courseId,courseName,trainer,trainingMode,startDate,endDate,duration,startTime,endTime,completionStatus FROM Course, AcceptedInvites WHERE course.courseId = AcceptedInvites.courseID AND empId = ? AND AcceptedInvites.deleteStatus = 0 AND Course.completionStatus = ?";
+        return jdbcTemplate.query(query,new BeanPropertyRowMapper<Course>(Course.class),empId,status);
+    }
+
+   // ---------to get fresh notification count---------
+
+    //DESCRIPTION
+
+//    public Integer notificationCount(String empId)
+//    {
+//
+//    }
 }

@@ -8,10 +8,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import trainingmanagement.TrainingManagement.entity.Course;
 import trainingmanagement.TrainingManagement.request.FilterByDate;
-import trainingmanagement.TrainingManagement.response.AttendedNonAttendedCourse;
-import trainingmanagement.TrainingManagement.response.CourseInfo;
-import trainingmanagement.TrainingManagement.response.EmployeeProfile;
-import trainingmanagement.TrainingManagement.response.RejectedResponse;
+import trainingmanagement.TrainingManagement.response.*;
 import trainingmanagement.TrainingManagement.service.EmployeeService;
 
 import java.util.List;
@@ -87,12 +84,23 @@ public class EmployeeController
     @PreAuthorize("hasRole('admin') or hasRole('manager') or hasRole('employee')")
     public ResponseEntity<?> attendedCourses(Authentication authentication)
     {
-        List<AttendedNonAttendedCourse> attendedNonAttendedCourses = employeeService.attendedCourse(authentication.getName());
+        List<AttendedCourse> attendedNonAttendedCourses = employeeService.attendedCourse(authentication.getName());
         if (attendedNonAttendedCourses == null)
         {
             return new ResponseEntity<>("You did not attend any course", HttpStatus.NOT_FOUND);
         }
         return ResponseEntity.of(Optional.of(attendedNonAttendedCourses));
+    }
+    @GetMapping("/nonAttendedCourse")
+    @PreAuthorize("hasRole('admin') or hasRole('manager') or hasRole('employee')")
+    public ResponseEntity<?> NonAttendedCourses(Authentication authentication)
+    {
+        List<NonAttendedCourse> nonAttendedNonAttendedCourses = employeeService.nonAttendedCourse(authentication.getName());
+        if (nonAttendedNonAttendedCourses == null)
+        {
+            return new ResponseEntity<>("you do not have any courses", HttpStatus.NOT_FOUND);
+        }
+        return ResponseEntity.of(Optional.of(nonAttendedNonAttendedCourses));
     }
     //Omkar
     //filtering based on employee profile
@@ -115,5 +123,16 @@ public class EmployeeController
         String empId = authentication.getName();
         int count = employeeService.getCourseStatusCountForEmployee(empId,completionStatus);
         return ResponseEntity.of(Optional.of(count));
+    }
+
+    @GetMapping("/acceptedCourses/filter/{completionStatus}")
+    @PreAuthorize("hasRole('admin') or hasRole('manager') or hasRole('employee')")
+    public ResponseEntity<List<Course>> filterCoursesByStatus(Authentication authentication, @PathVariable String completionStatus){
+        String empId = authentication.getName();
+        List<Course> courseList = employeeService.coursesForEmployeeByCompletedStatus(empId,completionStatus);
+        if(courseList.size() == 0){
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+        return ResponseEntity.of(Optional.of(courseList));
     }
 }

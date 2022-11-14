@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import trainingmanagement.TrainingManagement.entity.Course;
+import trainingmanagement.TrainingManagement.request.ManagerEmployees;
 import trainingmanagement.TrainingManagement.request.MultipleEmployeeRequest;
 import trainingmanagement.TrainingManagement.response.CourseList;
 import trainingmanagement.TrainingManagement.response.EmployeeInfo;
@@ -158,7 +159,19 @@ public class AdminController
         return ResponseEntity.of(Optional.of(updatedCourse));
     }
 
+    @PostMapping("/assignManager/employees")
+    @PreAuthorize("hasRole('admin')")
+    public ResponseEntity<String> assignManager(@RequestBody ManagerEmployees managerEmployees)
+    {
+        try
+        {
+            adminRepository.assignEmployeesToManager(managerEmployees);
+            return ResponseEntity.status(HttpStatus.OK).body("");
+        } catch (Exception e) {
+            System.out.println(e.getMessage());
+            System.out.println(e);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        }
 
-
-    //Sudarshan
+    }
 }

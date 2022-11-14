@@ -1,10 +1,16 @@
 package trainingmanagement.TrainingManagement.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataAccessException;
+import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
+import trainingmanagement.TrainingManagement.customException.EmployeeNotExistException;
+import trainingmanagement.TrainingManagement.customException.ManagerEmployeeSameException;
+import trainingmanagement.TrainingManagement.customException.ManagerNotExistException;
 import trainingmanagement.TrainingManagement.entity.Course;
 import trainingmanagement.TrainingManagement.entity.ManagersCourses;
+import trainingmanagement.TrainingManagement.request.ManagerEmployees;
 import trainingmanagement.TrainingManagement.request.MultipleEmployeeRequest;
 import trainingmanagement.TrainingManagement.response.CourseList;
 import trainingmanagement.TrainingManagement.response.EmployeeInfo;
@@ -122,4 +128,65 @@ public class AdminService
         String query = "update course set courseName =?, trainer=?, trainingMode=?, startDate=?, endDate =?, duration=?, startTime =?, endTime =?, meetingInfo=? where courseId = ? and deleteStatus=0";
         return jdbcTemplate.update(query, course.getCourseName(),course.getTrainer(),course.getTrainingMode(),course.getStartDate(),course.getEndDate(),course.getDuration(),course.getStartTime(),course.getEndTime(),course.getMeetingInfo(),course.getCourseId());
     }
+
+    //can't do anything if emplist contain super admin empId
+    public void assignEmployeesToManager(ManagerEmployees managerEmployees) throws ManagerNotExistException, EmployeeNotExistException, ManagerEmployeeSameException {
+
+        String managerId=managerEmployees.getManagerId();
+        checkManagerExist(managerId);
+        if (managerEmployees.getEmpId()==null || managerEmployees.getEmpId().size()==0)
+        {
+            throw new EmployeeNotExistException("EmployeeId list is empty");
+        }
+        for (String empId:managerEmployees.getEmpId()) {
+            updateEmployeesForManger(empId,managerId);
+        }
+
+    }
+    public void excludeSuperAdminFromEmpList(List<String> emplist)
+    {
+        String superAdmin="";
+        
+    }
+    public void updateEmployeesForManger(String empId,String managerId) throws EmployeeNotExistException, ManagerEmployeeSameException {
+
+        checkEmployeeExist(empId);
+        checkManagerIdAndEmployeeIdSame(empId,managerId);
+        String query="update Manager set managerId=? where empId=?";
+        jdbcTemplate.update(query,managerId,empId);
+
+    }
+    public void checkManagerExist(String managerId) throws ManagerNotExistException
+    {
+        String query="select emp_id from employee_role where emp_id=? and role_name='manager'";
+        try
+        {
+            jdbcTemplate.queryForObject(query,String.class,managerId);
+
+        } catch (DataAccessException e) {
+
+            throw new ManagerNotExistException("ManagerId Does Not Exist");
+        }
+    }
+    public void checkEmployeeExist(String empId) throws EmployeeNotExistException
+    {
+        String query="select emp_id from employee where emp_id=? and delete_status=0 ";
+        try
+        {
+            String str=jdbcTemplate.queryForObject(query,String.class,empId);
+
+
+        } catch (DataAccessException e) {
+
+            throw new EmployeeNotExistException("Employee "+empId+" Does Not Exist");
+        }
+    }
+    public void checkManagerIdAndEmployeeIdSame(String empId,String managerId) throws ManagerEmployeeSameException {
+        if(empId.equalsIgnoreCase(managerId))
+        {
+            throw new ManagerEmployeeSameException("manager can't report to himself, remove managerId from empId List");
+        }
+    }
+
+
 }

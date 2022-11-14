@@ -4,10 +4,9 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 
 import java.sql.Date;
-
 @Data
 @AllArgsConstructor
-public class AttendedNonAttendedCourse
+public class NonAttendedCourse
 {
     private int courseId;
     private String courseName;
@@ -15,4 +14,5 @@ public class AttendedNonAttendedCourse
     private String trainingMode;
     private Date startDate;
     private Date endDate;
+    private String reason;
 }

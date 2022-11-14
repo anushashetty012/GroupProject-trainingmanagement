@@ -54,8 +54,10 @@ public class SuperAdminService {
             return null;
         }
         employee.setPassword(getEncodedPassword(employee.getPassword()));
-
-        return employeeDao.save(employee);
+        String query =  "insert into manager(empId) values(?)";
+        employeeDao.save(employee);
+        jdbcTemplate.update(query,employee.getEmpId());
+        return employee;
     }
 
     public String changeRole(EmployeeRole employeeRole)
