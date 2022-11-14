@@ -23,9 +23,6 @@ public class ManagerService {
     {
         String query = "SELECT course.courseId,courseName,trainer,trainingMode,startDate,endDate,duration,startTime,endTime,completionStatus FROM Course,managerscourses WHERE course.courseId = managerscourses.courseID and managerID=? and completionStatus=? and deleteStatus=false";
         return jdbcTemplate.query(query,new BeanPropertyRowMapper<Course>(Course.class),empId,completionStatus);
-
     }
-
-
 }
 

@@ -231,7 +231,47 @@ public class CommonService
         }
         return null;
     }
+    //invite employees for a course
 
+    public List<EmployeeInvite> employeesToInviteForAdmin(int courseId,List<EmployeeInvite> employeeList, List<EmployeeInvite> employeeList1, List<EmployeeInvite> employeeList2)
+    {
+        employeeList = jdbcTemplate.query(GET_INVITED_EMPLOYEES,(rs, rowNum) -> {
+            return new EmployeeInvite(rs.getString("emp_id"),rs.getString("emp_name"),rs.getString("designation"),true);
+        },courseId);
+        //Employees who rejected the invites and employees who are not invited
+        employeeList1 = jdbcTemplate.query(GET_NON_INVITED_EMPLOYEES,(rs, rowNum) -> {
+            return new EmployeeInvite(rs.getString("emp_id"),rs.getString("emp_name"),rs.getString("designation"),false);
+        },courseId);
+        employeeList2.addAll(employeeList);
+        employeeList2.addAll(employeeList1);
+        return employeeList2;
+    }
+    public List<EmployeeInvite> employeesToInviteForManager(int courseId, String empId,List<EmployeeInvite> employeeList, List<EmployeeInvite> employeeList1, List<EmployeeInvite> employeeList2)
+    {
+        try
+        {
+            List<ManagersCourses> isCourseAssigned = jdbcTemplate.query(CHECK_COURSE_ALLOCATION, (rs, rowNum) -> {
+                return new ManagersCourses(rs.getInt("courseId"));
+            }, empId, courseId);
+            if (isCourseAssigned.size() != 0 )
+            {
+                employeeList = jdbcTemplate.query(GET_INVITED_EMPLOYEES_FOR_MANAGER,(rs, rowNum) -> {
+                    return new EmployeeInvite(rs.getString("emp_id"),rs.getString("emp_name"),rs.getString("designation"),true);
+                },empId,courseId);
+                employeeList1 = jdbcTemplate.query(GET_NON_INVITED_EMPLOYEES_FOR_MANAGER,(rs, rowNum) -> {
+                    return new EmployeeInvite(rs.getString("emp_id"),rs.getString("emp_name"),rs.getString("designation"),false);
+                },empId,courseId);
+                employeeList2.addAll(employeeList);
+                employeeList2.addAll(employeeList1);
+                return employeeList2;
+            }
+        }
+        catch (DataAccessException e)
+        {
+            return null;
+        }
+        return null;
+    }
     public List<EmployeeInvite> getEmployeesToInvite(int courseId,String empId)
     {
         List<EmployeeInvite> employeeList = new ArrayList<>();
@@ -239,40 +279,11 @@ public class CommonService
         List<EmployeeInvite> employeeList2= new ArrayList<>();
         if(getRole((empId)).equalsIgnoreCase("admin"))
         {
-            //Employees who are invited, accepted or not responded
-            employeeList = jdbcTemplate.query(GET_INVITED_EMPLOYEES,(rs, rowNum) -> {
-                return new EmployeeInvite(rs.getString("emp_id"),rs.getString("emp_name"),rs.getString("designation"),true);
-            },courseId);
-            //Employees who rejected the invites and employees who are not invited
-            employeeList1 = jdbcTemplate.query(GET_NON_INVITED_EMPLOYEES,(rs, rowNum) -> {
-                return new EmployeeInvite(rs.getString("emp_id"),rs.getString("emp_name"),rs.getString("designation"),false);
-            },courseId);
-            employeeList2.addAll(employeeList);
-            employeeList2.addAll(employeeList1);
+            return employeesToInviteForAdmin(courseId,employeeList,employeeList1,employeeList2);
         }
         if (getRole((empId)).equalsIgnoreCase("manager"))
         {
-            try
-            {
-                List<ManagersCourses> isCourseAssigned = jdbcTemplate.query(CHECK_COURSE_ALLOCATION, (rs, rowNum) -> {
-                    return new ManagersCourses(rs.getInt("courseId"));
-                }, empId, courseId);
-                if (isCourseAssigned.size() != 0 )
-                {
-                    employeeList = jdbcTemplate.query(GET_INVITED_EMPLOYEES_FOR_MANAGER,(rs, rowNum) -> {
-                        return new EmployeeInvite(rs.getString("emp_id"),rs.getString("emp_name"),rs.getString("designation"),true);
-                    },empId,courseId);
-                    employeeList1 = jdbcTemplate.query(GET_NON_INVITED_EMPLOYEES_FOR_MANAGER,(rs, rowNum) -> {
-                        return new EmployeeInvite(rs.getString("emp_id"),rs.getString("emp_name"),rs.getString("designation"),false);
-                    },empId,courseId);
-                    employeeList2.addAll(employeeList);
-                    employeeList2.addAll(employeeList1);
-                }
-            }
-            catch (DataAccessException e)
-            {
-                return null;
-            }
+            return employeesToInviteForManager(courseId,empId,employeeList,employeeList1,employeeList2);
         }
         return employeeList2;
     }
@@ -372,7 +383,6 @@ public class CommonService
     {
         String role = getRole(empId);
         List<EmployeeDetails> employeeDetails;
-        System.out.println(role);
         if(role.equals("admin")){
             employeeDetails= employeeDetailsListForAdmin();
         }else{
@@ -489,6 +499,4 @@ public class CommonService
             return FilterCoursesForManagerByCompletedStatus(filter,empId);
         }
     }
-
-
 }

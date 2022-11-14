@@ -100,11 +100,9 @@ public class CommonController
     //Get List of All Employees
     @GetMapping("/employees")
     @PreAuthorize("hasRole('admin') or hasRole('manager')")
-
-    public ResponseEntity<List<EmployeeDetails>> getEmployeeList(Authentication authentication)
+    public ResponseEntity<?> getEmployeeList(Authentication authentication,@RequestParam int page, int limit)
     {
         String empId = authentication.getName();
-
         List<EmployeeDetails> empData = commonService.employeeDetails(empId);
         if (empData.size() == 0)
         {

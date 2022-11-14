@@ -11,7 +11,9 @@ import trainingmanagement.TrainingManagement.entity.ManagersCourses;
 import trainingmanagement.TrainingManagement.request.FilterByDate;
 import trainingmanagement.TrainingManagement.response.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class EmployeeService
@@ -25,6 +27,8 @@ public class EmployeeService
     private String CHECK_COURSE_ALLOCATION = "SELECT courseId FROM ManagersCourses WHERE managerId=? AND courseId=?";
     private String CHECK_IF_INVITED = "SELECT courseId FROM Invites where empId=? AND courseId=? and (acceptanceStatus=true or acceptanceStatus is null)";
     private String GET_ROLE = "SELECT role_name FROM employee_role WHERE emp_id=?";
+    int offset=0;
+
     //to get role
     public String getRole(String empId)
     {
@@ -222,10 +226,18 @@ public class EmployeeService
     }
 
     //to retrieve invited courses based on completion status
-    public List<Course> coursesForEmployeeByCompletedStatus(String empId,String status)
+    public Map<Integer,List<Course>> coursesForEmployeeByCompletedStatus(String empId, String status, int page, int limit)
     {
-        String query = "SELECT course.courseId,courseName,trainer,trainingMode,startDate,endDate,duration,startTime,endTime,completionStatus FROM Course, AcceptedInvites WHERE course.courseId = AcceptedInvites.courseID AND empId = ? AND AcceptedInvites.deleteStatus = 0 AND Course.completionStatus = ?";
-        return jdbcTemplate.query(query,new BeanPropertyRowMapper<Course>(Course.class),empId,status);
+        Map map = new HashMap<Integer,List>();
+        offset = limit *(page-1);
+        String query = "SELECT course.courseId,courseName,trainer,trainingMode,startDate,endDate,duration,startTime,endTime,completionStatus FROM Course, AcceptedInvites WHERE course.courseId = AcceptedInvites.courseID AND empId = ? AND AcceptedInvites.deleteStatus = 0 AND Course.completionStatus = ? limit ?,?";
+        List<Course> courseList = jdbcTemplate.query(query,new BeanPropertyRowMapper<Course>(Course.class),empId,status,offset,limit);
+        if (courseList.size()!=0)
+        {
+            map.put(courseList.size(),courseList);
+            return map;
+        }
+        return null;
     }
 
    // ---------to get fresh notification count---------

@@ -12,6 +12,7 @@ import trainingmanagement.TrainingManagement.response.*;
 import trainingmanagement.TrainingManagement.service.EmployeeService;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @RestController
@@ -127,9 +128,9 @@ public class EmployeeController
 
     @GetMapping("/acceptedCourses/filter/{completionStatus}")
     @PreAuthorize("hasRole('admin') or hasRole('manager') or hasRole('employee')")
-    public ResponseEntity<List<Course>> filterCoursesByStatus(Authentication authentication, @PathVariable String completionStatus){
+    public ResponseEntity<?> filterCoursesByStatus(Authentication authentication, @PathVariable String completionStatus,@RequestParam int page,@RequestParam int limit){
         String empId = authentication.getName();
-        List<Course> courseList = employeeService.coursesForEmployeeByCompletedStatus(empId,completionStatus);
+        Map<Integer,List<Course>> courseList = employeeService.coursesForEmployeeByCompletedStatus(empId,completionStatus,page,limit);
         if(courseList.size() == 0){
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
