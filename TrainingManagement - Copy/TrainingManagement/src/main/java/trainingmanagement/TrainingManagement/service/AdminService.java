@@ -61,8 +61,6 @@ public class AdminService
         return "Course created successfully";
     }
 
-
-
     //to allocate managers to course
     public Map<Integer,List<CourseList>> getCourseToAssignManager(int page, int limit)
     {
@@ -181,7 +179,6 @@ public class AdminService
         catch (Exception e)
         {
              checkTime(course);
-
         }
     }
     //can't do anything if emplist contain super admin empId
@@ -207,7 +204,6 @@ public class AdminService
         checkManagerIdAndEmployeeIdSame(empId,managerId);
         String query="update Manager set managerId=? where empId=?";
         jdbcTemplate.update(query,managerId,empId);
-
     }
     public void checkManagerExist(String managerId) throws ManagerNotExistException
     {
@@ -227,7 +223,6 @@ public class AdminService
         try
         {
             String str=jdbcTemplate.queryForObject(query,String.class,empId);
-
 
         } catch (DataAccessException e) {
 

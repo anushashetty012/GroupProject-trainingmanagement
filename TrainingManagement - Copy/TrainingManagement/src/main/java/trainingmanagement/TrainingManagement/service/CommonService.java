@@ -376,8 +376,6 @@ public class CommonService
         return employeeDetails;
     }
 
-
-
     //Checks if the role is manager or admin and calls the corresponding function
     public List<EmployeeDetails> employeeDetails(String empId)
     {
