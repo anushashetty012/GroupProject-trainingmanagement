@@ -5,6 +5,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import trainingmanagement.TrainingManagement.customException.CourseInfoExceptionIntegrity;
 import trainingmanagement.TrainingManagement.entity.Course;
 import trainingmanagement.TrainingManagement.request.ManagerEmployees;
 import trainingmanagement.TrainingManagement.request.MultipleEmployeeRequest;
@@ -75,7 +76,12 @@ public class AdminController
     @PreAuthorize("hasRole('admin')")
     public ResponseEntity<?> createCourse(@RequestBody Course course)
     {
-        String course1 = adminRepository.createCourse(course);
+        String course1 = null;
+        try {
+            course1 = adminRepository.createCourse(course);
+        } catch (CourseInfoExceptionIntegrity e) {
+            return new ResponseEntity<>(e.getMessage(),HttpStatus.OK);
+        }
         if (course1 == null)
         {
             return new ResponseEntity<>("Course is not created,please fill all the mandatory fields",HttpStatus.NOT_MODIFIED);
@@ -165,8 +171,13 @@ public class AdminController
 
     @PatchMapping("/update/course")
     @PreAuthorize("hasRole('admin')")
-    public ResponseEntity<Integer> updateCourse(@RequestBody Course course){
-        int updatedCourse = adminRepository.updateCourse(course);
+    public ResponseEntity<?> updateCourse(@RequestBody Course course){
+        int updatedCourse = 0;
+        try {
+            updatedCourse = adminRepository.updateCourse(course);
+        } catch (CourseInfoExceptionIntegrity e) {
+            return new ResponseEntity<>(e.getMessage(),HttpStatus.NOT_MODIFIED);
+        }
         if(updatedCourse == 0){
             return ResponseEntity.status(HttpStatus.NOT_MODIFIED).build();
         }

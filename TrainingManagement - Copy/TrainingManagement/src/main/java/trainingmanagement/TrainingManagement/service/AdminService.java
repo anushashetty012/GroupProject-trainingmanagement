@@ -2,12 +2,9 @@ package trainingmanagement.TrainingManagement.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataAccessException;
-import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
-import trainingmanagement.TrainingManagement.customException.EmployeeNotExistException;
-import trainingmanagement.TrainingManagement.customException.ManagerEmployeeSameException;
-import trainingmanagement.TrainingManagement.customException.ManagerNotExistException;
+import trainingmanagement.TrainingManagement.customException.*;
 import trainingmanagement.TrainingManagement.entity.Course;
 import trainingmanagement.TrainingManagement.entity.ManagersCourses;
 import trainingmanagement.TrainingManagement.request.ManagerEmployees;
@@ -15,6 +12,8 @@ import trainingmanagement.TrainingManagement.request.MultipleEmployeeRequest;
 import trainingmanagement.TrainingManagement.response.CourseList;
 import trainingmanagement.TrainingManagement.response.EmployeeInfo;
 
+import java.sql.Date;
+import java.util.Calendar;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -56,8 +55,8 @@ public class AdminService
         },completionStatus);
     }
 
-    public String createCourse(Course course)
-    {
+    public String createCourse(Course course) throws CourseInfoExceptionIntegrity {
+        courseInfoIntegrity(course);
         jdbcTemplate.update(CREATE_COURSE,course.getCourseName(),course.getTrainer(),course.getTrainingMode(),course.getStartDate(),course.getEndDate(),course.getDuration(),course.getStartTime(),course.getEndTime(),course.getMeetingInfo());
         return "Course created successfully";
     }
@@ -139,32 +138,71 @@ public class AdminService
     //omkar
     //11-11-2022
     //Update Existing Course
-    public int updateCourse(Course course){
+    public int updateCourse(Course course) throws CourseInfoExceptionIntegrity {
+        courseInfoIntegrity(course);
         String query = "update course set courseName =?, trainer=?, trainingMode=?, startDate=?, endDate =?, duration=?, startTime =?, endTime =?, meetingInfo=? where courseId = ? and deleteStatus=0";
         return jdbcTemplate.update(query, course.getCourseName(),course.getTrainer(),course.getTrainingMode(),course.getStartDate(),course.getEndDate(),course.getDuration(),course.getStartTime(),course.getEndTime(),course.getMeetingInfo(),course.getCourseId());
     }
 
+    //throws exception if start time is equal or greater than end time
+    //only if start time and end time is not null
+    public void checkTime(Course course) throws CourseInfoExceptionIntegrity {
+        if (!(course.getStartTime()==null) && !(course.getEndTime()==null))
+        {
+            int i=course.getStartTime().compareTo(course.getEndTime());
+            if(!(i<0))
+            {
+                throw new CourseInfoExceptionIntegrity("start time should be smaller end time");
+            }
+        }
+    }
+    public void courseInfoIntegrity(Course course) throws CourseInfoExceptionIntegrity
+    {
+        if (course.getCourseName().isEmpty())
+        {
+            throw new CourseInfoExceptionIntegrity("CourseName can't be empty");
+        }
+        long millis=System.currentTimeMillis();
+        java.sql.Date date=new java.sql.Date(millis);
+        String str= date.toString();
+
+        if(0>course.getStartDate().compareTo(Date.valueOf(str)))
+        {
+            throw new CourseInfoExceptionIntegrity("start date can't be before  current date");
+        }
+        try {
+            int i=course.getStartDate().compareTo(course.getEndDate());
+            if(i>0)
+            {
+                throw new CourseInfoExceptionIntegrity("end date cant be before start date");
+            }
+            checkTime(course);
+        }
+        catch (Exception e)
+        {
+             checkTime(course);
+
+        }
+    }
     //can't do anything if emplist contain super admin empId
-    public void assignEmployeesToManager(ManagerEmployees managerEmployees) throws ManagerNotExistException, EmployeeNotExistException, ManagerEmployeeSameException {
+    public void assignEmployeesToManager(ManagerEmployees managerEmployees) throws ManagerNotExistException, EmployeeNotExistException, ManagerEmployeeSameException, SuperAdminIdException {
 
         String managerId=managerEmployees.getManagerId();
         checkManagerExist(managerId);
+        isSuperAdminId(managerId);
         if (managerEmployees.getEmpId()==null || managerEmployees.getEmpId().size()==0)
         {
             throw new EmployeeNotExistException("EmployeeId list is empty");
         }
-        for (String empId:managerEmployees.getEmpId()) {
+        for (String empId:managerEmployees.getEmpId())
+        {
             updateEmployeesForManger(empId,managerId);
         }
-
     }
-    public void excludeSuperAdminFromEmpList(List<String> emplist)
-    {
-        String superAdmin="";
-        
-    }
-    public void updateEmployeesForManger(String empId,String managerId) throws EmployeeNotExistException, ManagerEmployeeSameException {
 
+    public void updateEmployeesForManger(String empId,String managerId) throws EmployeeNotExistException, ManagerEmployeeSameException, SuperAdminIdException {
+
+        isSuperAdminId(empId);
         checkEmployeeExist(empId);
         checkManagerIdAndEmployeeIdSame(empId,managerId);
         String query="update Manager set managerId=? where empId=?";
@@ -200,6 +238,13 @@ public class AdminService
         if(empId.equalsIgnoreCase(managerId))
         {
             throw new ManagerEmployeeSameException("manager can't report to himself, remove managerId from empId List");
+        }
+    }
+
+    public void isSuperAdminId(String empId) throws SuperAdminIdException {
+        if(empId.equalsIgnoreCase("RT001"))
+        {
+            throw new SuperAdminIdException("can't give super admin as employee");
         }
     }
 }
