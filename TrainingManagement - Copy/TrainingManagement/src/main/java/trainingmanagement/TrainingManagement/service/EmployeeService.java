@@ -31,7 +31,7 @@ public class EmployeeService
 {
     @Autowired
     JdbcTemplate jdbcTemplate;
-    private String GET_ACCEPTED_COUNT = "SELECT COUNT(empId) FROM AcceptedInvites WHERE AcceptedInvites.courseId=? and AcceptedInvites.deleteStatus=false";
+    private String GET_ACCEPTED_COUNT = "SELECT COUNT(empId) FROM AcceptedInvites,Course WHERE AcceptedInvites.courseId=Course.courseId and AcceptedInvites.courseId=1 and AcceptedInvites.deleteStatus=false and Course.deleteStatus=false";
     //for admin
     private String VIEW_COURSE_DETAILS = "SELECT courseId,courseName,trainer,trainingMode,startDate,endDate,duration,startTime,endTime,completionStatus,meetingInfo FROM Course WHERE courseId=? and deleteStatus=false";
     //for manager
