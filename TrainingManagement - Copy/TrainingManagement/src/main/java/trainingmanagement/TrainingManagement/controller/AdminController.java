@@ -192,9 +192,8 @@ public class AdminController
         {
             adminRepository.assignEmployeesToManager(managerEmployees);
             return ResponseEntity.status(HttpStatus.OK).body("");
-        } catch (Exception e) {
-            System.out.println(e.getMessage());
-            System.out.println(e);
+        } catch (Exception e)
+        {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         }
 

@@ -107,7 +107,7 @@ public class EmployeeController
     //filtering based on employee profile
     @GetMapping("/acceptedCourses/filter")
     @PreAuthorize("hasRole('admin') or hasRole('manager') or hasRole('employee')")
-    public ResponseEntity<?> filterCourses(Authentication authentication, @RequestBody FilterByDate filter, @RequestParam int page, @RequestParam int limit){
+    public ResponseEntity<?> filterCourses(Authentication authentication, @ModelAttribute FilterByDate filter, @RequestParam int page, @RequestParam int limit){
         String empId = authentication.getName();
         Map<Integer,List<Course>> courseList = employeeService.filterCourse(filter,empId,page,limit);
         if(courseList == null){
