@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import trainingmanagement.TrainingManagement.entity.Course;
 import trainingmanagement.TrainingManagement.request.FilterByDate;
 import trainingmanagement.TrainingManagement.response.*;
@@ -135,5 +136,29 @@ public class EmployeeController
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
         return ResponseEntity.of(Optional.of(courseList));
+    }
+
+    @GetMapping("/notification/count")
+    @PreAuthorize("hasRole('admin') or hasRole('manager') or hasRole('employee')")
+    public ResponseEntity<Integer> NotificationCount(Authentication authentication)
+    {
+        String empId = authentication.getName();
+        return ResponseEntity.status(HttpStatus.OK).body(employeeService.notificationCount(empId));
+    }
+
+    @GetMapping("/notifications")
+    @PreAuthorize("hasRole('admin') or hasRole('manager') or hasRole('employee')")
+    public ResponseEntity<?> notifications(Authentication authentication)
+    {
+        String empId = authentication.getName();
+        return ResponseEntity.status(HttpStatus.OK).body(employeeService.notifications(empId));
+    }
+
+    @PreAuthorize("hasRole('admin') or hasRole('manager') or hasRole('employee')")
+    @PutMapping("/uploadProfilePic")
+    public ResponseEntity<String> uploadImage(@RequestParam("file") MultipartFile file, Authentication authentication) throws Exception
+    {
+        String profileImage = employeeService.uploadFile(file,authentication.getName());
+        return ResponseEntity.of(Optional.of(profileImage));
     }
 }

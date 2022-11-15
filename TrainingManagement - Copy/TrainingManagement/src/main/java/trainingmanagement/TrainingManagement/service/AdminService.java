@@ -13,7 +13,6 @@ import trainingmanagement.TrainingManagement.response.CourseList;
 import trainingmanagement.TrainingManagement.response.EmployeeInfo;
 
 import java.sql.Date;
-import java.util.Calendar;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -55,7 +54,7 @@ public class AdminService
         },completionStatus);
     }
 
-    public String createCourse(Course course) throws CourseInfoExceptionIntegrity {
+    public String createCourse(Course course) throws CourseInfoIntegrityException {
         courseInfoIntegrity(course);
         jdbcTemplate.update(CREATE_COURSE,course.getCourseName(),course.getTrainer(),course.getTrainingMode(),course.getStartDate(),course.getEndDate(),course.getDuration(),course.getStartTime(),course.getEndTime(),course.getMeetingInfo());
         return "Course created successfully";
@@ -136,7 +135,7 @@ public class AdminService
     //omkar
     //11-11-2022
     //Update Existing Course
-    public int updateCourse(Course course) throws CourseInfoExceptionIntegrity {
+    public int updateCourse(Course course) throws CourseInfoIntegrityException {
         courseInfoIntegrity(course);
         String query = "update course set courseName =?, trainer=?, trainingMode=?, startDate=?, endDate =?, duration=?, startTime =?, endTime =?, meetingInfo=? where courseId = ? and deleteStatus=0";
         return jdbcTemplate.update(query, course.getCourseName(),course.getTrainer(),course.getTrainingMode(),course.getStartDate(),course.getEndDate(),course.getDuration(),course.getStartTime(),course.getEndTime(),course.getMeetingInfo(),course.getCourseId());
@@ -144,21 +143,21 @@ public class AdminService
 
     //throws exception if start time is equal or greater than end time
     //only if start time and end time is not null
-    public void checkTime(Course course) throws CourseInfoExceptionIntegrity {
+    public void checkTime(Course course) throws CourseInfoIntegrityException {
         if (!(course.getStartTime()==null) && !(course.getEndTime()==null))
         {
             int i=course.getStartTime().compareTo(course.getEndTime());
             if(!(i<0))
             {
-                throw new CourseInfoExceptionIntegrity("start time should be smaller end time");
+                throw new CourseInfoIntegrityException("start time should be smaller end time");
             }
         }
     }
-    public void courseInfoIntegrity(Course course) throws CourseInfoExceptionIntegrity
+    public void courseInfoIntegrity(Course course) throws CourseInfoIntegrityException
     {
         if (course.getCourseName().isEmpty())
         {
-            throw new CourseInfoExceptionIntegrity("CourseName can't be empty");
+            throw new CourseInfoIntegrityException("CourseName can't be empty");
         }
         long millis=System.currentTimeMillis();
         java.sql.Date date=new java.sql.Date(millis);
@@ -166,13 +165,13 @@ public class AdminService
 
         if(0>course.getStartDate().compareTo(Date.valueOf(str)))
         {
-            throw new CourseInfoExceptionIntegrity("start date can't be before  current date");
+            throw new CourseInfoIntegrityException("start date can't be before  current date");
         }
         try {
             int i=course.getStartDate().compareTo(course.getEndDate());
             if(i>0)
             {
-                throw new CourseInfoExceptionIntegrity("end date cant be before start date");
+                throw new CourseInfoIntegrityException("end date cant be before start date");
             }
             checkTime(course);
         }
@@ -240,6 +239,21 @@ public class AdminService
         if(empId.equalsIgnoreCase("RT001"))
         {
             throw new SuperAdminIdException("can't give super admin as employee");
+        }
+    }
+    public void  deleteCourse(int courseId) throws CourseDeletionException {
+        isCourseExist(courseId,false);
+        String query="update course set deleteStatus=1 where courseId=?";
+        jdbcTemplate.update(query);
+    }
+
+    public void isCourseExist(int courseId,boolean deleteStatus) throws CourseDeletionException {
+        String query="select courseId from course where courseId=? and deleteStatus=?";
+        try
+        {
+            jdbcTemplate.queryForObject(query, Integer.class,courseId,deleteStatus);
+        } catch (Exception e) {
+            throw new CourseDeletionException("Course does not exist ");
         }
     }
 }

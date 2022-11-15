@@ -6,13 +6,16 @@ import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import trainingmanagement.TrainingManagement.customException.EmployeeNotExistException;
 import trainingmanagement.TrainingManagement.dao.EmployeeDao;
 import trainingmanagement.TrainingManagement.dao.RoleDao;
 import trainingmanagement.TrainingManagement.entity.Employee;
 import trainingmanagement.TrainingManagement.entity.EmployeeRole;
 import trainingmanagement.TrainingManagement.entity.Roles;
+import trainingmanagement.TrainingManagement.request.MultipleEmployeeRequest;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 @Service
@@ -20,6 +23,8 @@ public class SuperAdminService {
 
     @Autowired
     private EmployeeDao employeeDao;
+    @Autowired
+    private AdminService adminService;
 
     @Autowired
     private RoleDao roleDao;
@@ -71,7 +76,15 @@ public class SuperAdminService {
     {
         return passwordEncoder.encode(password);
     }
-
-
-
+    public void deleteEmployees(List<MultipleEmployeeRequest> empId) throws EmployeeNotExistException {
+        for (MultipleEmployeeRequest emp:empId) {
+            adminService.checkEmployeeExist(emp.getEmpId());
+            deleteEmployee(emp.getEmpId());
+        }
+    }
+    public void deleteEmployee(String empId)
+    {
+        String query="update employee set delete_status=1 where emp_id=?";
+        jdbcTemplate.update(query,empId);
+    }
 }

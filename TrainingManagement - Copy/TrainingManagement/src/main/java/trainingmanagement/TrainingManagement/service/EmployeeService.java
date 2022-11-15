@@ -1,26 +1,37 @@
 package trainingmanagement.TrainingManagement.service;
 
+import com.google.auth.oauth2.GoogleCredentials;
+import com.google.cloud.storage.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataAccessException;
+import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 import trainingmanagement.TrainingManagement.entity.Course;
 import trainingmanagement.TrainingManagement.entity.Invites;
 import trainingmanagement.TrainingManagement.entity.ManagersCourses;
 import trainingmanagement.TrainingManagement.request.FilterByDate;
 import trainingmanagement.TrainingManagement.response.*;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.*;
+
+import static trainingmanagement.TrainingManagement.service.Constants.*;
 
 @Service
 public class EmployeeService
 {
     @Autowired
     JdbcTemplate jdbcTemplate;
-    private String GET_ACCEPTED_COUNT = "SELECT COUNT(empId) FROM AcceptedInvites WHERE courseId=? and deleteStatus=false";
+    private String GET_ACCEPTED_COUNT = "SELECT COUNT(empId) FROM AcceptedInvites WHERE AcceptedInvites.courseId=? and AcceptedInvites.deleteStatus=false";
     //for admin
     private String VIEW_COURSE_DETAILS = "SELECT courseId,courseName,trainer,trainingMode,startDate,endDate,duration,startTime,endTime,completionStatus,meetingInfo FROM Course WHERE courseId=? and deleteStatus=false";
     //for manager
@@ -173,7 +184,7 @@ public class EmployeeService
         {
             Map map = new HashMap<Integer,List>();
             offset = limit *(page-1);
-            List<AttendedCourse> attendedCourseList = jdbcTemplate.query("select Course.courseId,courseName,trainer,trainingMode,startDate,endDate from Course,AcceptedInvites where Course.courseId = AcceptedInvites.courseid and Course.completionStatus='completed' and AcceptedInvites.deleteStatus=false and AcceptedInvites.empId=? limit ?,?",(rs, rowNum) -> {
+            List<AttendedCourse> attendedCourseList = jdbcTemplate.query("select Course.courseId,courseName,trainer,trainingMode,startDate,endDate from Course,AcceptedInvites where Course.courseId = AcceptedInvites.courseid and Course.completionStatus='completed' and AcceptedInvites.deleteStatus=false and Course.deleteStatus=false and AcceptedInvites.empId=? limit ?,?",(rs, rowNum) -> {
                 return new AttendedCourse(rs.getInt("courseId"),rs.getString("courseName"),rs.getString("trainer"),rs.getString("trainingMode"),rs.getDate("startDate"),rs.getDate("endDate"));
             },empId,offset,limit);
             if (attendedCourseList.size()!=0)
@@ -195,7 +206,7 @@ public class EmployeeService
         {
             Map map = new HashMap<Integer,List>();
             offset = limit *(page-1);
-            List<NonAttendedCourse> nonAttendedCourseList = jdbcTemplate.query("select Course.courseId,courseName,trainer,trainingMode,startDate,endDate,reason from Course,RejectedInvites where Course.courseId = RejectedInvites.courseid  and RejectedInvites.empId=? limit ?,?",(rs, rowNum) -> {
+            List<NonAttendedCourse> nonAttendedCourseList = jdbcTemplate.query("select Course.courseId,courseName,trainer,trainingMode,startDate,endDate,reason from Course,RejectedInvites where Course.courseId = RejectedInvites.courseid and Course.deleteStatus=false and RejectedInvites.empId=? limit ?,?",(rs, rowNum) -> {
                 return new NonAttendedCourse(rs.getInt("courseId"),rs.getString("courseName"),rs.getString("trainer"),rs.getString("trainingMode"),rs.getDate("startDate"),rs.getDate("endDate"),rs.getString("reason"));
             },empId,offset,limit);
             if (nonAttendedCourseList.size()!=0)
@@ -269,4 +280,54 @@ public class EmployeeService
         return null;
     }
 
+    public Integer notificationCount(String empId) {
+        String query = "select count(empId) from invites where empId=? and notificationSentStatus=0 ";
+        try {
+            return jdbcTemplate.queryForObject(query, Integer.class, empId);
+        } catch (DataAccessException e) {
+            return 0;
+        }
+    }
+
+    public Map<Integer,List<Notification>> notifications(String empId)
+    {
+        String query1 = "select inviteId,courseId,empId from invites where empId=? and acceptanceStatus is null";
+        List<Notification> n=jdbcTemplate.query(query1,new BeanPropertyRowMapper<>(Notification.class),empId);
+        String query2="update invites set notificationSentStatus=1  where empId=? and acceptanceStatus is null";
+        jdbcTemplate.update(query2,empId);
+        Map<Integer,List<Notification>> map=new HashMap<Integer,List<Notification>>();
+        map.put(n.size(),n);
+        return map;
+    }
+    //profile photo upload
+
+    private File convertMultiPartToFile(MultipartFile file) throws IOException {
+        File convertedFile = new File(Objects.requireNonNull(file.getOriginalFilename()));
+        FileOutputStream fos = new FileOutputStream(convertedFile);
+        fos.write(file.getBytes());
+        fos.close();
+        return convertedFile;
+    }
+
+    private String generateFileName(MultipartFile multiPart) {
+        return new Date().getTime() + "-" + Objects.requireNonNull(multiPart.getOriginalFilename()).replace(" ", "_");
+    }
+    public String uploadFile(MultipartFile multipartFile, String empId) throws IOException {
+        String objectName = generateFileName(multipartFile);
+
+        FileInputStream serviceAccount = new FileInputStream(FIREBASE_SDK_JSON);
+        File file = convertMultiPartToFile(multipartFile);
+        Path filePath = file.toPath();
+
+        Storage storage = StorageOptions.newBuilder().setCredentials(GoogleCredentials.fromStream(serviceAccount)).setProjectId(FIREBASE_PROJECT_ID).build().getService();
+        BlobId blobId = BlobId.of(FIREBASE_BUCKET, objectName);
+        BlobInfo blobInfo = BlobInfo.newBuilder(blobId).setContentType(multipartFile.getContentType()).build();
+
+        storage.create(blobInfo, Files.readAllBytes(filePath));
+        Blob blob = storage.create(blobInfo, Files.readAllBytes(filePath));
+        System.out.println(String.format(DOWNLOAD_URL, URLEncoder.encode(objectName)));
+        String profileUrl = String.format(DOWNLOAD_URL, URLEncoder.encode(objectName));
+        jdbcTemplate.update("update employee set profile_pic=? where emp_id=?",profileUrl,empId);
+        return profileUrl;
+    }
 }

@@ -5,7 +5,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-import trainingmanagement.TrainingManagement.customException.CourseInfoExceptionIntegrity;
+import trainingmanagement.TrainingManagement.customException.CourseInfoIntegrityException;
 import trainingmanagement.TrainingManagement.entity.Course;
 import trainingmanagement.TrainingManagement.request.ManagerEmployees;
 import trainingmanagement.TrainingManagement.request.MultipleEmployeeRequest;
@@ -79,7 +79,7 @@ public class AdminController
         String course1 = null;
         try {
             course1 = adminRepository.createCourse(course);
-        } catch (CourseInfoExceptionIntegrity e) {
+        } catch (CourseInfoIntegrityException e) {
             return new ResponseEntity<>(e.getMessage(),HttpStatus.OK);
         }
         if (course1 == null)
@@ -175,7 +175,7 @@ public class AdminController
         int updatedCourse = 0;
         try {
             updatedCourse = adminRepository.updateCourse(course);
-        } catch (CourseInfoExceptionIntegrity e) {
+        } catch (CourseInfoIntegrityException e) {
             return new ResponseEntity<>(e.getMessage(),HttpStatus.NOT_MODIFIED);
         }
         if(updatedCourse == 0){
@@ -196,6 +196,16 @@ public class AdminController
         {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         }
-
+    }
+    @DeleteMapping("/delete/course/{courseId}")
+    @PreAuthorize("hasRole('admin')")
+    public ResponseEntity<String> deleteEmployees(@PathVariable Integer courseId)
+    {
+        try {
+            adminRepository.deleteCourse(courseId);
+            return ResponseEntity.status(HttpStatus.OK).body("");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        }
     }
 }
