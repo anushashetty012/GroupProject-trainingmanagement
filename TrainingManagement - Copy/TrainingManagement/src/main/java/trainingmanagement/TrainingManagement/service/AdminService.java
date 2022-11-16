@@ -230,7 +230,7 @@ public class AdminService
         isSuperAdminId(managerId);
         if (managerEmployees.getEmpId()==null || managerEmployees.getEmpId().size()==0)
         {
-            throw new EmployeeNotExistException("EmployeeId list is empty");
+            throw new EmployeeNotExistException("Employee Id list is empty");
         }
         for (String empId:managerEmployees.getEmpId())
         {

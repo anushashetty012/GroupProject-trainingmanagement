@@ -89,7 +89,7 @@ public class AdminController
         {
             return new ResponseEntity<>("Course is not created,please fill all the mandatory fields",HttpStatus.NOT_MODIFIED);
         }
-        return ResponseEntity.status(HttpStatus.CREATED).body(course1);
+        return ResponseEntity.status(HttpStatus.OK).body(course1);
     }
 
     //to allocate course to manager
@@ -143,34 +143,6 @@ public class AdminController
         }
         return ResponseEntity.of(Optional.of(assignStatus));
     }
-
-//    //Omkar
-//    @GetMapping("/getCourseCount/{empId}")
-//    @PreAuthorize("hasRole('admin')")
-//    public ResponseEntity<EmployeeList> getEmployeeCourseCount(@PathVariable String empId){
-//        EmployeeList employeeList = adminRepository.getCountOfCourses(empId);
-//
-//        if(employeeList == null){
-//            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
-//        }
-//        return ResponseEntity.of(Optional.of(employeeList));
-//    }
-//
-//
-//    //Delete Attendees from Invites for an Upcoming Course
-//    @PutMapping("/removeAttendees")
-//    @PreAuthorize("hasRole('admin')")
-//    public ResponseEntity<String> removeAttendees(@PathVariable String empId, @PathVariable String courseId){
-//        String removed = adminRepository.deleteAttendeeFromUpcomingCourse(empId,courseId);
-//
-//        if (removed == null){
-//            return ResponseEntity.status(HttpStatus.NOT_MODIFIED).build();
-//        }
-//        return ResponseEntity.of(Optional.of(removed));
-//    }
-
-
-//11-11-2022
 
     @PatchMapping("/update/course")
     @PreAuthorize("hasRole('admin')")

@@ -1,11 +1,14 @@
 package trainingmanagement.TrainingManagement.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataAccessException;
+import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import trainingmanagement.TrainingManagement.customException.EmployeeExistException;
 import trainingmanagement.TrainingManagement.customException.EmployeeNotExistException;
 import trainingmanagement.TrainingManagement.dao.EmployeeDao;
 import trainingmanagement.TrainingManagement.dao.RoleDao;
@@ -13,6 +16,8 @@ import trainingmanagement.TrainingManagement.entity.Employee;
 import trainingmanagement.TrainingManagement.entity.EmployeeRole;
 import trainingmanagement.TrainingManagement.entity.Roles;
 import trainingmanagement.TrainingManagement.request.MultipleEmployeeRequest;
+import trainingmanagement.TrainingManagement.response.EmployeeDetails;
+import trainingmanagement.TrainingManagement.response.EmployeeProfile;
 
 import java.util.HashSet;
 import java.util.List;
@@ -40,7 +45,9 @@ public class SuperAdminService {
     private String CHANGING_ROLES = "UPDATE employee_role SET role_name=? WHERE emp_id=?";
 
 
-    public Employee registerNewEmployee(Employee employee){
+    public Employee registerNewEmployee(Employee employee) throws EmployeeExistException, EmployeeNotExistException {
+        checkEmployeeExist(employee.getEmpId());
+        checkEmployeeDeleted(employee.getEmpId());
         Roles roles = roleDao.findById("employee").get();
         Set<Roles> employeeRoles = new HashSet<>();
 
@@ -64,6 +71,30 @@ public class SuperAdminService {
         jdbcTemplate.update(query,employee.getEmpId());
         return employee;
     }
+    public void checkEmployeeExist(String empId) throws EmployeeExistException
+    {
+        String query="select emp_id from employee where emp_id=? ";
+        try
+        {
+            String str=jdbcTemplate.queryForObject(query,String.class,empId);
+            throw new EmployeeExistException("Employee "+empId+" already Exist");
+
+        } catch (DataAccessException e) {
+
+
+        }
+    }
+    public void checkEmployeeDeleted(String empId) throws EmployeeNotExistException
+    {
+        String query="select emp_id from employee where emp_id=? and delete_status=0";
+        try
+        {
+            String str=jdbcTemplate.queryForObject(query,String.class,empId);
+        } catch (DataAccessException e)
+        {
+            throw new EmployeeNotExistException("Employee "+empId+" already deleted");
+        }
+    }
 
     public String changeRole(EmployeeRole employeeRole)
     {
@@ -71,14 +102,25 @@ public class SuperAdminService {
         return "Role changed to "+employeeRole.getRoleName();
     }
 
+    public void employeeExist(String empId) throws EmployeeExistException {
+        String query="select emp_id from employee where emp_id=? ";
+        try
+        {
+            String str=jdbcTemplate.queryForObject(query,String.class,empId);
+        }
+        catch (DataAccessException e) {
+            throw new EmployeeExistException("Employee "+empId+" doesn't Exist");
+        }
+    }
 
     public String getEncodedPassword(String password)
     {
         return passwordEncoder.encode(password);
     }
-    public void deleteEmployees(List<MultipleEmployeeRequest> empId) throws EmployeeNotExistException {
+    public void deleteEmployees(List<MultipleEmployeeRequest> empId) throws EmployeeNotExistException, EmployeeExistException {
         for (MultipleEmployeeRequest emp:empId) {
-            adminService.checkEmployeeExist(emp.getEmpId());
+            employeeExist(emp.getEmpId());
+            checkEmployeeDeleted(emp.getEmpId());
             deleteEmployee(emp.getEmpId());
         }
     }
@@ -86,5 +128,11 @@ public class SuperAdminService {
     {
         String query="update employee set delete_status=1 where emp_id=?";
         jdbcTemplate.update(query,empId);
+    }
+    public List<EmployeeProfile> employeeDetailsListForSuperAdmin(){
+
+        String queryForEmployees = "SELECT emp_id, emp_name, designation,profile_pic FROM employee WHERE delete_status = 0 AND emp_id <> 'RT001' ";
+        List<EmployeeProfile> a = jdbcTemplate.query(queryForEmployees,new BeanPropertyRowMapper<EmployeeProfile>(EmployeeProfile.class));
+        return a;
     }
 }
