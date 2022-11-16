@@ -1,10 +1,9 @@
 package trainingmanagement.TrainingManagement.service;
 
-import com.google.auth.oauth2.GoogleCredentials;
-import com.google.cloud.storage.*;
+import com.cloudinary.Cloudinary;
+import com.cloudinary.utils.ObjectUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataAccessException;
-import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -14,17 +13,8 @@ import trainingmanagement.TrainingManagement.entity.Invites;
 import trainingmanagement.TrainingManagement.entity.ManagersCourses;
 import trainingmanagement.TrainingManagement.request.FilterByDate;
 import trainingmanagement.TrainingManagement.response.*;
-
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.net.URLEncoder;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.*;
 
-import static trainingmanagement.TrainingManagement.service.Constants.*;
 
 @Service
 public class EmployeeService
@@ -300,34 +290,43 @@ public class EmployeeService
         return map;
     }
     //profile photo upload
-
-    private File convertMultiPartToFile(MultipartFile file) throws IOException {
-        File convertedFile = new File(Objects.requireNonNull(file.getOriginalFilename()));
-        FileOutputStream fos = new FileOutputStream(convertedFile);
-        fos.write(file.getBytes());
-        fos.close();
-        return convertedFile;
+    public String uploadProfilePhoto(MultipartFile profilePhoto,String empId) {
+        Cloudinary cloudinary = new Cloudinary(ObjectUtils.asMap(
+                "cloud_name", "do52xyv54",
+                "api_key", "815687279696268",
+                "api_secret", "EBPsxcDsTwxLZxJ6jjtUaAKv1EU",
+                "secure", "true"));
+        cloudinary.config.secure = true;
+        try
+        {
+            // Upload the image
+            Map params1 = ObjectUtils.asMap(
+                    "use_filename", true,
+                    "unique_filename", false,
+                    "overwrite", true
+            );
+            Map uploadResult = cloudinary.uploader().upload(profilePhoto.getBytes(), params1);
+            //String publicId = uploadResult.get("public_id").toString();
+            String url = uploadResult.get("secure_url").toString();
+            jdbcTemplate.update("update employee set profile_pic=? where emp_id=?",url,empId);
+            return "Profile photo uploaded successfully";
+        }
+        catch (Exception e)
+        {
+            System.out.println(e.getMessage());
+        }
+        return null;
     }
-
-    private String generateFileName(MultipartFile multiPart) {
-        return new Date().getTime() + "-" + Objects.requireNonNull(multiPart.getOriginalFilename()).replace(" ", "_");
-    }
-    public String uploadFile(MultipartFile multipartFile, String empId) throws IOException {
-        String objectName = generateFileName(multipartFile);
-
-        FileInputStream serviceAccount = new FileInputStream(FIREBASE_SDK_JSON);
-        File file = convertMultiPartToFile(multipartFile);
-        Path filePath = file.toPath();
-
-        Storage storage = StorageOptions.newBuilder().setCredentials(GoogleCredentials.fromStream(serviceAccount)).setProjectId(FIREBASE_PROJECT_ID).build().getService();
-        BlobId blobId = BlobId.of(FIREBASE_BUCKET, objectName);
-        BlobInfo blobInfo = BlobInfo.newBuilder(blobId).setContentType(multipartFile.getContentType()).build();
-
-        storage.create(blobInfo, Files.readAllBytes(filePath));
-        Blob blob = storage.create(blobInfo, Files.readAllBytes(filePath));
-        System.out.println(String.format(DOWNLOAD_URL, URLEncoder.encode(objectName)));
-        String profileUrl = String.format(DOWNLOAD_URL, URLEncoder.encode(objectName));
-        jdbcTemplate.update("update employee set profile_pic=? where emp_id=?",profileUrl,empId);
-        return profileUrl;
+    public String viewProfilePhoto(String empId)
+    {
+        try
+        {
+            String profileUrl = jdbcTemplate.queryForObject("select profile_pic from employee where emp_id=?", String.class, empId);
+            return profileUrl;
+        }
+        catch (DataAccessException e)
+        {
+            return "Employee id not found";
+        }
     }
 }

@@ -12,6 +12,7 @@ import trainingmanagement.TrainingManagement.request.FilterByDate;
 import trainingmanagement.TrainingManagement.response.*;
 import trainingmanagement.TrainingManagement.service.EmployeeService;
 
+import java.io.File;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -155,10 +156,18 @@ public class EmployeeController
     }
 
     @PreAuthorize("hasRole('admin') or hasRole('manager') or hasRole('employee')")
-    @PutMapping("/uploadProfilePic")
-    public ResponseEntity<String> uploadImage(@RequestParam("file") MultipartFile file, Authentication authentication) throws Exception
+    @PutMapping("/uploadProfilePhoto")
+    public ResponseEntity<?> uploadIProfile(@RequestParam("file") MultipartFile file, Authentication authentication)
     {
-        String profileImage = employeeService.uploadFile(file,authentication.getName());
-        return ResponseEntity.of(Optional.of(profileImage));
+        String uploadMessage = employeeService.uploadProfilePhoto(file,authentication.getName());
+        return ResponseEntity.status(HttpStatus.OK).body(uploadMessage);
+    }
+
+    @PreAuthorize("hasRole('admin') or hasRole('manager') or hasRole('employee')")
+    @GetMapping("/viewProfilePhoto")
+    public ResponseEntity<?> retrieveProfileLink(Authentication authentication) throws Exception
+    {
+        String url = employeeService.viewProfilePhoto(authentication.getName());
+        return ResponseEntity.status(HttpStatus.OK).body(url);
     }
 }
