@@ -13,6 +13,8 @@ import trainingmanagement.TrainingManagement.response.CourseList;
 import trainingmanagement.TrainingManagement.response.EmployeeInfo;
 
 import java.sql.Date;
+import java.sql.Time;
+import java.sql.Timestamp;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,7 +24,7 @@ public class AdminService
 {
     private String TRAINING_COUNT = "SELECT COUNT(courseId) FROM Course WHERE completionStatus=? and deleteStatus=false";
     private String GET_COURSE = "SELECT courseId,courseName,trainer,trainingMode,startDate,endDate,duration,startTime,endTime,completionStatus FROM Course WHERE completionStatus=? and deleteStatus=false";
-    private String CREATE_COURSE = "INSERT INTO Course(courseName,trainer,trainingMode,startDate,endDate,duration,startTime,endTime,meetingInfo) values(?,?,?,?,?,?,?,?,?)";
+    private String CREATE_COURSE = "INSERT INTO Course(courseName,trainer,trainingMode,startDate,endDate,duration,startTime,endTime,meetingInfo,startTimestamp,endTimestamp) values(?,?,?,?,?,?,?,?,?,?,?)";
 
 
     //allocate project manager
@@ -53,10 +55,25 @@ public class AdminService
             return new CourseList(rs.getInt("courseId"),rs.getString("courseName"),rs.getString("trainer"),rs.getString("trainingMode"),rs.getDate("startDate"),rs.getDate("endDate"),rs.getTime("duration"),rs.getTime("startTime"),rs.getTime("endTime"),rs.getString("completionStatus"));
         },completionStatus);
     }
+    public Timestamp createTimestamp(Date date, Time time)
+    {
+
+        Timestamp t= new Timestamp(date.getYear(), date.getMonth(), date.getDate(), time.getHours(), time.getMinutes(), time.getSeconds(),0);
+        return t;
+    }
 
     public String createCourse(Course course) throws CourseInfoIntegrityException {
         courseInfoIntegrity(course);
-        jdbcTemplate.update(CREATE_COURSE,course.getCourseName(),course.getTrainer(),course.getTrainingMode(),course.getStartDate(),course.getEndDate(),course.getDuration(),course.getStartTime(),course.getEndTime(),course.getMeetingInfo());
+        Timestamp startTimestamp=createTimestamp(course.getStartDate(),course.getStartTime());
+        Timestamp endTimestamp=null;
+        try
+        {
+            checkEndTimeExist(course);
+            endTimestamp=createTimestamp(course.getEndDate(),course.getEndTime());
+        } catch (CourseInfoIntegrityException e) {
+
+        }
+        jdbcTemplate.update(CREATE_COURSE,course.getCourseName(),course.getTrainer(),course.getTrainingMode(),course.getStartDate(),course.getEndDate(),course.getDuration(),course.getStartTime(),course.getEndTime(),course.getMeetingInfo(),startTimestamp,endTimestamp);
         return "Course created successfully";
     }
 
@@ -137,13 +154,36 @@ public class AdminService
     //Update Existing Course
     public int updateCourse(Course course) throws CourseInfoIntegrityException {
         courseInfoIntegrity(course);
-        String query = "update course set courseName =?, trainer=?, trainingMode=?, startDate=?, endDate =?, duration=?, startTime =?, endTime =?, meetingInfo=? where courseId = ? and deleteStatus=0";
-        return jdbcTemplate.update(query, course.getCourseName(),course.getTrainer(),course.getTrainingMode(),course.getStartDate(),course.getEndDate(),course.getDuration(),course.getStartTime(),course.getEndTime(),course.getMeetingInfo(),course.getCourseId());
+        Timestamp startTimestamp=createTimestamp(course.getStartDate(),course.getStartTime());
+        Timestamp endTimestamp=null;
+        try
+        {
+            checkEndTimeExist(course);
+            endTimestamp=createTimestamp(course.getEndDate(),course.getEndTime());
+        } catch (CourseInfoIntegrityException e) {
+
+        }
+        String query = "update course set courseName =?, trainer=?, trainingMode=?, startDate=?, endDate =?, duration=?, startTime =?, endTime =?, meetingInfo=?,startTimestamp=?,endTimestamp=? where courseId = ? and deleteStatus=0";
+        return jdbcTemplate.update(query, course.getCourseName(),course.getTrainer(),course.getTrainingMode(),course.getStartDate(),course.getEndDate(),course.getDuration(),course.getStartTime(),course.getEndTime(),course.getMeetingInfo(),startTimestamp,endTimestamp,course.getCourseId());
+    }
+
+    public void checkStartTimeExist(Course course) throws CourseInfoIntegrityException {
+        if(course.getStartTime()==null)
+        {
+            throw new CourseInfoIntegrityException("start time should not be null");
+        }
+    }
+    public void checkEndTimeExist(Course course) throws CourseInfoIntegrityException {
+        if(course.getEndTime()==null)
+        {
+            throw new CourseInfoIntegrityException("end time should not be null");
+        }
     }
 
     //throws exception if start time is equal or greater than end time
     //only if start time and end time is not null
     public void checkTime(Course course) throws CourseInfoIntegrityException {
+
         if (!(course.getStartTime()==null) && !(course.getEndTime()==null))
         {
             int i=course.getStartTime().compareTo(course.getEndTime());
@@ -173,11 +213,13 @@ public class AdminService
             {
                 throw new CourseInfoIntegrityException("end date cant be before start date");
             }
+            checkStartTimeExist(course);
+            checkEndTimeExist(course);
             checkTime(course);
         }
-        catch (Exception e)
+        catch (NullPointerException e)
         {
-             checkTime(course);
+             checkStartTimeExist(course);
         }
     }
     //can't do anything if emplist contain super admin empId

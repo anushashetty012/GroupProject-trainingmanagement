@@ -76,17 +76,20 @@ public class AdminController
     @PreAuthorize("hasRole('admin')")
     public ResponseEntity<?> createCourse(@RequestBody Course course)
     {
-        String course1 = null;
-        try {
+        String course1;
+        try
+        {
             course1 = adminRepository.createCourse(course);
-        } catch (CourseInfoIntegrityException e) {
-            return new ResponseEntity<>(e.getMessage(),HttpStatus.OK);
+        }
+        catch (CourseInfoIntegrityException e)
+        {
+            return new ResponseEntity<>(e.getMessage(),HttpStatus.NOT_MODIFIED);
         }
         if (course1 == null)
         {
             return new ResponseEntity<>("Course is not created,please fill all the mandatory fields",HttpStatus.NOT_MODIFIED);
         }
-        return ResponseEntity.of(Optional.of(course1));
+        return new ResponseEntity<>(course1,HttpStatus.OK);
     }
 
     //to allocate course to manager
@@ -191,7 +194,7 @@ public class AdminController
         try
         {
             adminRepository.assignEmployeesToManager(managerEmployees);
-            return ResponseEntity.status(HttpStatus.OK).body("");
+            return ResponseEntity.status(HttpStatus.OK).body("Manager assigned successfully");
         } catch (Exception e)
         {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
@@ -203,7 +206,7 @@ public class AdminController
     {
         try {
             adminRepository.deleteCourse(courseId);
-            return ResponseEntity.status(HttpStatus.OK).body("");
+            return ResponseEntity.status(HttpStatus.OK).body("Deleted course successfully");
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         }
