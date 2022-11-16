@@ -76,7 +76,7 @@ public class AdminController
     @PreAuthorize("hasRole('admin')")
     public ResponseEntity<?> createCourse(@RequestBody Course course)
     {
-        String course1;
+        String course1=null;
         try
         {
             course1 = adminRepository.createCourse(course);
@@ -89,7 +89,7 @@ public class AdminController
         {
             return new ResponseEntity<>("Course is not created,please fill all the mandatory fields",HttpStatus.NOT_MODIFIED);
         }
-        return new ResponseEntity<>(course1,HttpStatus.OK);
+        return ResponseEntity.status(HttpStatus.CREATED).body(course1);
     }
 
     //to allocate course to manager
