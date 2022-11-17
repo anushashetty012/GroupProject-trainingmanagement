@@ -6,9 +6,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import trainingmanagement.TrainingManagement.customException.CourseNotValidException;
 import trainingmanagement.TrainingManagement.entity.Course;
 import trainingmanagement.TrainingManagement.request.FilterByDate;
-import trainingmanagement.TrainingManagement.response.CourseInfo;
 import trainingmanagement.TrainingManagement.response.EmployeeDetails;
 import trainingmanagement.TrainingManagement.response.EmployeeInvite;
 import trainingmanagement.TrainingManagement.request.MultipleEmployeeRequest;
@@ -59,13 +59,19 @@ public class CommonController
         return ResponseEntity.of(Optional.of(employee));
     }
 
-    //inviting employees
+    //inviting employees - invited=false if they can be invited
     @GetMapping("/getEmployeesToInvite/{courseId}")
     @PreAuthorize("hasRole('admin') or hasRole('manager')")
     public ResponseEntity<?> getEmployeesToInvite(@PathVariable int courseId,Authentication authentication)
     {
-        List<EmployeeInvite> employeeList = commonService.getEmployeesToInvite(courseId,authentication.getName());
-        if (employeeList.size() == 0)
+        List<EmployeeInvite> employeeList=null;
+        try
+        {
+            employeeList = commonService.getEmployeesToInvite(courseId,authentication.getName());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        }
+        if (employeeList == null)
         {
             return new ResponseEntity<>("There are no employees who are not invited or You cannot invite employees for this course",HttpStatus.NOT_FOUND);
         }
@@ -74,9 +80,14 @@ public class CommonController
 
     @PostMapping("/invite/{courseId}")
     @PreAuthorize("hasRole('admin') or hasRole('manager')")
-    public ResponseEntity<String> inviteEmployee(@PathVariable int courseId, @RequestBody List<MultipleEmployeeRequest> inviteToEmployees,Authentication authentication)
-    {
-        String inviteStatus = commonService.inviteEmployees(courseId,inviteToEmployees,authentication.getName());
+    public ResponseEntity<String> inviteEmployee(@PathVariable int courseId, @RequestBody List<MultipleEmployeeRequest> inviteToEmployees,Authentication authentication) throws CourseNotValidException {
+        String inviteStatus;
+        try
+        {
+            inviteStatus = commonService.inviteEmployees(courseId,inviteToEmployees,authentication.getName());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        }
         if (inviteStatus == null)
         {
             return new ResponseEntity<>("You cannot invite employees for this course",HttpStatus.NOT_FOUND);
@@ -88,7 +99,16 @@ public class CommonController
     @PreAuthorize("hasRole('admin') or hasRole('manager')")
     public ResponseEntity<String> deleteInvite(@PathVariable int courseId,@RequestBody List<MultipleEmployeeRequest> deleteInvites,Authentication authentication)
     {
-        String deleteStatus = commonService.deleteInvite(courseId,deleteInvites,authentication.getName());
+        String deleteStatus;
+        try
+        {
+            deleteStatus = commonService.deleteInvite(courseId,deleteInvites,authentication.getName());
+        }
+        catch (Exception e)
+        {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        }
+
         if (deleteStatus == null)
         {
             return new ResponseEntity<>("You cannot delete invite of this employees for this course",HttpStatus.NOT_FOUND);
@@ -96,7 +116,6 @@ public class CommonController
         return ResponseEntity.of(Optional.of(deleteStatus));
     }
 
-    //omkar and sudarshan
     //Get List of All Employees
     @GetMapping("/employees")
     @PreAuthorize("hasRole('admin') or hasRole('manager')")
@@ -110,7 +129,6 @@ public class CommonController
         }
         return ResponseEntity.of(Optional.of(empData));
     }
-
 
     @GetMapping("/employees/{searchKey}")
     @PreAuthorize("hasRole('admin') or hasRole('manager')")
@@ -127,16 +145,15 @@ public class CommonController
     }
     @GetMapping("/course/filter")
     @PreAuthorize("hasRole('admin') or hasRole('manager')")
-    public ResponseEntity<List<Course>> filterCourse(Authentication authentication, @RequestBody FilterByDate filter){
+    public ResponseEntity<?> filterCourse(Authentication authentication, @ModelAttribute FilterByDate filter,@RequestParam int page, @RequestParam int limit){
         String empID = authentication.getName();
 
-        List<Course> filteredCourseList = commonService.filteredCourses(empID,filter);
+        Map<Integer,List<Course>> filteredCourseList = commonService.filteredCourses(empID,filter,page,limit);
         if (filteredCourseList.size() == 0)
         {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
         return ResponseEntity.of(Optional.of(filteredCourseList));
     }
-
 }
 

@@ -11,7 +11,6 @@ import trainingmanagement.TrainingManagement.request.ManagerEmployees;
 import trainingmanagement.TrainingManagement.request.MultipleEmployeeRequest;
 import trainingmanagement.TrainingManagement.response.CourseList;
 import trainingmanagement.TrainingManagement.response.EmployeeInfo;
-
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
@@ -25,7 +24,6 @@ public class AdminService
     private String TRAINING_COUNT = "SELECT COUNT(courseId) FROM Course WHERE completionStatus=? and deleteStatus=false";
     private String GET_COURSE = "SELECT courseId,courseName,trainer,trainingMode,startDate,endDate,duration,startTime,endTime,completionStatus FROM Course WHERE completionStatus=? and deleteStatus=false";
     private String CREATE_COURSE = "INSERT INTO Course(courseName,trainer,trainingMode,startDate,endDate,duration,startTime,endTime,meetingInfo,startTimestamp,endTimestamp) values(?,?,?,?,?,?,?,?,?,?,?)";
-
 
     //allocate project manager
     private String COURSES_TO_MANAGER = "SELECT courseId,courseName,trainer,trainingMode,startDate,endDate,duration,startTime,endTime,completionStatus FROM Course WHERE completionStatus='upcoming' and deleteStatus=false LIMIT ?,?";
@@ -149,10 +147,10 @@ public class AdminService
         }
         return "Course allocated successfully";
     }
-    //omkar
-    //11-11-2022
+
     //Update Existing Course
-    public int updateCourse(Course course) throws CourseInfoIntegrityException {
+    public int updateCourse(Course course) throws CourseInfoIntegrityException
+    {
         courseInfoIntegrity(course);
         Timestamp startTimestamp=createTimestamp(course.getStartDate(),course.getStartTime());
         Timestamp endTimestamp=null;
@@ -167,13 +165,15 @@ public class AdminService
         return jdbcTemplate.update(query, course.getCourseName(),course.getTrainer(),course.getTrainingMode(),course.getStartDate(),course.getEndDate(),course.getDuration(),course.getStartTime(),course.getEndTime(),course.getMeetingInfo(),startTimestamp,endTimestamp,course.getCourseId());
     }
 
-    public void checkStartTimeExist(Course course) throws CourseInfoIntegrityException {
+    public void checkStartTimeExist(Course course) throws CourseInfoIntegrityException
+    {
         if(course.getStartTime()==null)
         {
             throw new CourseInfoIntegrityException("start time should not be null");
         }
     }
-    public void checkEndTimeExist(Course course) throws CourseInfoIntegrityException {
+    public void checkEndTimeExist(Course course) throws CourseInfoIntegrityException
+    {
         if(course.getEndTime()==null)
         {
             throw new CourseInfoIntegrityException("end time should not be null");
@@ -182,7 +182,8 @@ public class AdminService
 
     //throws exception if start time is equal or greater than end time
     //only if start time and end time is not null
-    public void checkTime(Course course) throws CourseInfoIntegrityException {
+    public void checkTime(Course course) throws CourseInfoIntegrityException
+    {
 
         if (!(course.getStartTime()==null) && !(course.getEndTime()==null))
         {
@@ -199,6 +200,7 @@ public class AdminService
         {
             throw new CourseInfoIntegrityException("CourseName can't be empty");
         }
+        courseModeIntegrity(course.getTrainingMode());
         long millis=System.currentTimeMillis();
         java.sql.Date date=new java.sql.Date(millis);
         String str= date.toString();
@@ -222,8 +224,16 @@ public class AdminService
              checkStartTimeExist(course);
         }
     }
+    public void courseModeIntegrity(String trainingMode) throws CourseInfoIntegrityException
+    {
+        if (!(trainingMode.equalsIgnoreCase("Off-site")||trainingMode.equalsIgnoreCase("At office")||trainingMode.equalsIgnoreCase("Online sessions")))
+        {
+            throw new CourseInfoIntegrityException("Training mode is not valid");
+        }
+    }
     //can't do anything if emplist contain super admin empId
-    public void assignEmployeesToManager(ManagerEmployees managerEmployees) throws ManagerNotExistException, EmployeeNotExistException, ManagerEmployeeSameException, SuperAdminIdException {
+    public void assignEmployeesToManager(ManagerEmployees managerEmployees) throws ManagerNotExistException, EmployeeNotExistException, ManagerEmployeeSameException, SuperAdminIdException
+    {
 
         String managerId=managerEmployees.getManagerId();
         checkManagerExist(managerId);
@@ -238,7 +248,8 @@ public class AdminService
         }
     }
 
-    public void updateEmployeesForManger(String empId,String managerId) throws EmployeeNotExistException, ManagerEmployeeSameException, SuperAdminIdException {
+    public void updateEmployeesForManger(String empId,String managerId) throws EmployeeNotExistException, ManagerEmployeeSameException, SuperAdminIdException
+    {
 
         isSuperAdminId(empId);
         checkEmployeeExist(empId);
@@ -270,32 +281,36 @@ public class AdminService
             throw new EmployeeNotExistException("Employee "+empId+" Does Not Exist");
         }
     }
-    public void checkManagerIdAndEmployeeIdSame(String empId,String managerId) throws ManagerEmployeeSameException {
+    public void checkManagerIdAndEmployeeIdSame(String empId,String managerId) throws ManagerEmployeeSameException
+    {
         if(empId.equalsIgnoreCase(managerId))
         {
             throw new ManagerEmployeeSameException("manager can't report to himself, remove managerId from empId List");
         }
     }
 
-    public void isSuperAdminId(String empId) throws SuperAdminIdException {
+    public void isSuperAdminId(String empId) throws SuperAdminIdException
+    {
         if(empId.equalsIgnoreCase("RT001"))
         {
             throw new SuperAdminIdException("can't give super admin as employee");
         }
     }
-    public void  deleteCourse(int courseId) throws CourseDeletionException {
+    public void  deleteCourse(int courseId) throws CourseDeletionException
+    {
         isCourseExist(courseId,false);
         String query="update course set deleteStatus=1 where courseId=?";
         jdbcTemplate.update(query);
     }
 
-    public void isCourseExist(int courseId,boolean deleteStatus) throws CourseDeletionException {
-        String query="select courseId from course where courseId=? and deleteStatus=?";
+    public void isCourseExist(int courseId,boolean deleteStatus) throws CourseDeletionException
+    {
+        String query="select courseId from course where courseId=? and deleteStatus=? and completionStatus='upcoming'";
         try
         {
             jdbcTemplate.queryForObject(query, Integer.class,courseId,deleteStatus);
         } catch (Exception e) {
-            throw new CourseDeletionException("Course does not exist ");
+            throw new CourseDeletionException("Course does not exist or course is active/completed");
         }
     }
 }

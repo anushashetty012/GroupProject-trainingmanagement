@@ -1,6 +1,7 @@
 package trainingmanagement.TrainingManagement.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -17,8 +18,8 @@ import javax.mail.internet.MimeMessage;
 import java.util.Properties;
 
 @Service
-public class EmailOtpService {
-
+public class EmailOtpService
+{
     @Autowired
     JdbcTemplate jdbcTemplate;
     @Autowired
@@ -27,7 +28,22 @@ public class EmailOtpService {
     private static final String username = "projectrobo456@gmail.com";
     private static final String password = "lzcuzcmvzybwfkhr";
 
-    public boolean sendEmail(String emailId, String twoFaCode)throws Exception{
+    public boolean sendEmail(String empId,String emailId, String twoFaCode)throws Exception
+    {
+        String emailId1;
+        try
+        {
+            emailId1 = jdbcTemplate.queryForObject("select email from employee where emp_id=? and delete_status=false", String.class,empId);
+        }
+        catch (DataAccessException e)
+        {
+           throw new Exception(e.getMessage());
+        }
+        if (!(emailId1.equalsIgnoreCase(emailId)))
+        {
+            throw new Exception("email id not valid");
+        }
+
         Properties properties = new Properties();
         properties.put("mail.smtp.auth","true");
         properties.put("mail.smtp.starttls.enable","true");
@@ -52,35 +68,29 @@ public class EmailOtpService {
 
     }
 
-
-
-
-
-    public void update2FAProperties(OtpRequest otpRequest, String twofacode) {
+    public void update2FAProperties(OtpRequest otpRequest, String twofacode)
+    {
         jdbcTemplate.update("INSERT INTO EmployeeOtp(empId,2fa_code,2fa_expire_time) VALUES (?,?,?)", new Object[] {
                 otpRequest.getEmpId(),twofacode, (System.currentTimeMillis()/1000) + 120
         });
     }
 
-
-    public boolean checkCode(OtpResponse response, String empId) {
+    public boolean checkCode(OtpResponse response)
+    {
         return jdbcTemplate.queryForObject("select count(*) from EmployeeOtp WHERE 2fa_code=? and empId=?"
-                + " and 2fa_expire_time >=?", new Object[] {response.getOtpCode(), empId,
+                + " and 2fa_expire_time >=?", new Object[] {response.getOtpCode(), response.getEmpId(),
                 System.currentTimeMillis()/1000}, Integer.class) > 0;
     }
 
-
-    //13-Nov-2022
     //Change Password
-    public int changePassword(PasswordResponse passwordResponse, String empId){
-        String query =  "UPDATE employee SET password = ? WHERE emp_id = ?";
-        return jdbcTemplate.update(query,getEncodedPassword(passwordResponse.getPassword()),empId);
+    public int changePassword(PasswordResponse passwordResponse)
+    {
+        String query =  "UPDATE employee SET password = ? WHERE emp_id = ? and delete_status=false";
+        return jdbcTemplate.update(query,getEncodedPassword(passwordResponse.getPassword()),passwordResponse.getEmpId());
 
     }
 
     public String getEncodedPassword(String password) {
         return passwordEncoder.encode(password);
     }
-
-
 }

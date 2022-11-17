@@ -1,16 +1,14 @@
 package trainingmanagement.TrainingManagement.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.NoArgsConstructor;
-
 import javax.persistence.*;
 import java.util.Set;
 
 @Entity
 @NoArgsConstructor
-//@JsonInclude(JsonInclude.Include.NON_NULL)
-public class Employee {
+public class Employee
+{
 
     @Id
     private String empId;
@@ -34,9 +32,6 @@ public class Employee {
             }
     )
     private Set<Roles> roles;
-
-
-
 
     public String getEmpId()
     {
@@ -107,5 +102,4 @@ public class Employee {
     {
         this.empId = empId;
     }
-
 }

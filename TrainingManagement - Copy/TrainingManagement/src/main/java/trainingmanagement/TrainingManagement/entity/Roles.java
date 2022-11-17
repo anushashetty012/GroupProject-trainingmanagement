@@ -4,10 +4,10 @@ import javax.persistence.Entity;
 import javax.persistence.Id;
 
 @Entity
-public class Roles {
+public class Roles
+{
     @Id
     private String roleName;
-
 
     public String getRoleName()
     {

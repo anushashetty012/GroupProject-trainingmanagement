@@ -14,8 +14,8 @@ import java.util.HashSet;
 import java.util.Set;
 
 @Service
-public class DefaultService {
-
+public class DefaultService
+{
     @Autowired
     private EmployeeDao employeeDao;
 
@@ -51,8 +51,6 @@ public class DefaultService {
         adminRole.setRoleName("admin");
         roleDao.save(adminRole);
 
-
-
         //Default Super Admin
         Employee superAdmin = new Employee();
         superAdmin.setEmpId("RT001");
@@ -66,7 +64,6 @@ public class DefaultService {
 
         superAdmin.setRoles(superAdminRoles);
         employeeDao.save(superAdmin);
-
     }
     public String getEncodedPassword(String password)
     {

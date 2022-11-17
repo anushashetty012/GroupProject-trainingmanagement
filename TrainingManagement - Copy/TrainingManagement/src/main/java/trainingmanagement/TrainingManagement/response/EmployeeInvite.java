@@ -11,5 +11,4 @@ public class EmployeeInvite
     private String empName;
     private String designation;
     private boolean invited=false;
-
 }

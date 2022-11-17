@@ -5,7 +5,8 @@ import lombok.Data;
 import java.util.List;
 
 @Data
-public class ManagerEmployees {
+public class ManagerEmployees
+{
     private String managerId;
     private List<String> empId;
 }

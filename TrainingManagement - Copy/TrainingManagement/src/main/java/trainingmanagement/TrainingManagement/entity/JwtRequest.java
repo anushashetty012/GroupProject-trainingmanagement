@@ -1,7 +1,7 @@
 package trainingmanagement.TrainingManagement.entity;
 
-public class JwtRequest {
-
+public class JwtRequest
+{
     private String empId;
     private String password;
 

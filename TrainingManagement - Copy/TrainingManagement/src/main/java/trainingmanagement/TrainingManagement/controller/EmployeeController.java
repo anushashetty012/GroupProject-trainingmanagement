@@ -11,8 +11,6 @@ import trainingmanagement.TrainingManagement.entity.Course;
 import trainingmanagement.TrainingManagement.request.FilterByDate;
 import trainingmanagement.TrainingManagement.response.*;
 import trainingmanagement.TrainingManagement.service.EmployeeService;
-
-import java.io.File;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -47,6 +45,7 @@ public class EmployeeController
         }
         return ResponseEntity.of(Optional.of(courseData));
     }
+
     @PutMapping("/acceptInvite/{inviteId}")
     @PreAuthorize("hasRole('admin') or hasRole('manager') or hasRole('employee')")
     public ResponseEntity<?> acceptInvite(@PathVariable int inviteId)
@@ -94,6 +93,7 @@ public class EmployeeController
         }
         return ResponseEntity.of(Optional.of(attendedNonAttendedCourses));
     }
+
     @GetMapping("/nonAttendedCourse")
     @PreAuthorize("hasRole('admin') or hasRole('manager') or hasRole('employee')")
     public ResponseEntity<?> NonAttendedCourses(Authentication authentication, @RequestParam int page, @RequestParam int limit)
@@ -105,7 +105,7 @@ public class EmployeeController
         }
         return ResponseEntity.of(Optional.of(nonAttendedNonAttendedCourses));
     }
-    //Omkar
+
     //filtering based on employee profile
     @GetMapping("/acceptedCourses/filter")
     @PreAuthorize("hasRole('admin') or hasRole('manager') or hasRole('employee')")
@@ -113,11 +113,10 @@ public class EmployeeController
         String empId = authentication.getName();
         Map<Integer,List<Course>> courseList = employeeService.filterCourse(filter,empId,page,limit);
         if(courseList == null){
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("No "+filter.getCompletionStatus()+" course between the range");
         }
         return ResponseEntity.of(Optional.of(courseList));
     }
-
 
     //Get count of Course completion status
     @GetMapping("/course/count/{completionStatus}")
@@ -134,7 +133,7 @@ public class EmployeeController
         String empId = authentication.getName();
         Map<Integer,List<Course>> courseList = employeeService.coursesForEmployeeByCompletedStatus(empId,completionStatus,page,limit);
         if(courseList == null){
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("No "+ completionStatus+" course");
         }
         return ResponseEntity.of(Optional.of(courseList));
     }

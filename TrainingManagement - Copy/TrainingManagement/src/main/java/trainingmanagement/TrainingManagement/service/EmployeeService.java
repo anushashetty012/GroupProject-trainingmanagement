@@ -21,12 +21,12 @@ public class EmployeeService
 {
     @Autowired
     JdbcTemplate jdbcTemplate;
-    private String GET_ACCEPTED_COUNT = "SELECT COUNT(empId) FROM AcceptedInvites,Course WHERE AcceptedInvites.courseId=Course.courseId and AcceptedInvites.courseId=1 and AcceptedInvites.deleteStatus=false and Course.deleteStatus=false";
+    private String GET_ACCEPTED_COUNT = "SELECT COUNT(empId) FROM AcceptedInvites,Course WHERE AcceptedInvites.courseId=Course.courseId and AcceptedInvites.courseId=? and AcceptedInvites.deleteStatus=false and Course.deleteStatus=false";
     //for admin
     private String VIEW_COURSE_DETAILS = "SELECT courseId,courseName,trainer,trainingMode,startDate,endDate,duration,startTime,endTime,completionStatus,meetingInfo FROM Course WHERE courseId=? and deleteStatus=false";
     //for manager
     private String CHECK_COURSE_ALLOCATION = "SELECT courseId FROM ManagersCourses WHERE managerId=? AND courseId=?";
-    private String CHECK_IF_INVITED = "SELECT courseId FROM Invites where empId=? AND courseId=? and (acceptanceStatus=true or acceptanceStatus is null)";
+    private String CHECK_IF_INVITED = "SELECT courseId FROM Invites where empId=? AND courseId=? and (acceptanceStatus=true)";
     private String GET_ROLE = "SELECT role_name FROM employee_role WHERE emp_id=?";
     int offset=0;
 
@@ -43,10 +43,10 @@ public class EmployeeService
         }
         if (getRole((empId)).equalsIgnoreCase("manager"))
         {
+
             List<Invites> isInvited = jdbcTemplate.query(CHECK_IF_INVITED,(rs, rowNum) -> {
                 return new Invites(rs.getInt("courseId"));
             },empId,courseId);
-
             List<ManagersCourses> isCourseAssigned = jdbcTemplate.query(CHECK_COURSE_ALLOCATION,(rs, rowNum) -> {
                 return new ManagersCourses(rs.getInt("courseId"));
             },empId,courseId);
@@ -119,18 +119,30 @@ public class EmployeeService
         }
         return null;
     }
+    public void isInviteValid(int inviteId) throws Exception
+    {
+        String query1 = "select courseId from Invites where inviteId=?";
+        String query2 = "select courseId from course where courseId=? and (completionStatus='upcoming' or (completionStatus='active' and trainingMode='Online sessions'))";
+        try {
+           Integer id = jdbcTemplate.queryForObject(query1,Integer.class,inviteId);
+           jdbcTemplate.queryForObject(query2, Integer.class,id);
+        } catch (DataAccessException e) {
+            throw new Exception("Course is not valid anymore");
+        }
+    }
 
     public String acceptInvite(int inviteId)
     {
         try
         {
+            isInviteValid(inviteId);
             jdbcTemplate.update("update Invites set acceptanceStatus=true where inviteId=?",inviteId);
             AcceptedOrRejectedResponse invite = jdbcTemplate.queryForObject("select inviteId,empId,courseId from invites where inviteId=?",(rs, rowNum) -> {
                 return new AcceptedOrRejectedResponse(rs.getInt("inviteId"),rs.getString("empId"),rs.getInt("courseId"));
             },inviteId);
             jdbcTemplate.update("insert into AcceptedInvites(inviteId,courseId,empId) values(?,?,?)",invite.getInviteId(),invite.getCourseId(),invite.getEmpId());
         }
-        catch (DataAccessException e)
+        catch (Exception e)
         {
             return null;
         }
@@ -216,7 +228,8 @@ public class EmployeeService
     //Omkar
 
     //Filter Accepted invites by Completed status based on date
-    public Map<Integer,List<Course>> filterCourse(FilterByDate filter, String empId,int page, int limit){
+    public Map<Integer,List<Course>> filterCourse(FilterByDate filter, String empId,int page, int limit)
+    {
         Map map = new HashMap<Integer,List>();
         offset = limit *(page-1);
         if(filter.getCompletionStatus().matches("active|upcoming")){
@@ -235,22 +248,24 @@ public class EmployeeService
         }
         return null;
     }
+
     //Filter for Active and Upcoming Courses from Accepted Invites by Employee by date and status
-    public List<Course> filterCoursesForEmployeeByActiveOrUpcomingStatus(FilterByDate filter, String empId,int offset,int limit){
+    public List<Course> filterCoursesForEmployeeByActiveOrUpcomingStatus(FilterByDate filter, String empId,int offset,int limit)
+    {
         String query = "SELECT course.courseId,courseName,trainer,trainingMode,startDate,endDate,duration,startTime,endTime,completionStatus FROM Course, AcceptedInvites WHERE course.courseId = AcceptedInvites.courseID AND empId = ? AND AcceptedInvites.deleteStatus = 0 AND Course.completionStatus = ? AND (startDate >= ? and startDate <= ? ) limit ?,?";
         return jdbcTemplate.query(query,new BeanPropertyRowMapper<Course>(Course.class),empId,filter.getCompletionStatus(),filter.getDownDate(),filter.getTopDate(),offset,limit);
     }
 
     //Filter for Completed Courses from Accepted Invites by Employee by date and status
-    public List<Course> filterCoursesForEmployeeByCompletedStatus(FilterByDate filter, String empId,int offset,int limit){
+    public List<Course> filterCoursesForEmployeeByCompletedStatus(FilterByDate filter, String empId,int offset,int limit)
+    {
         String query = "SELECT course.courseId,courseName,trainer,trainingMode,startDate,endDate,duration,startTime,endTime,completionStatus FROM Course, AcceptedInvites WHERE course.courseId = AcceptedInvites.courseID AND empId = ? AND AcceptedInvites.deleteStatus = 0 AND Course.completionStatus = ? AND (endDate >= ? and endDate <= ? ) limit ?,?";
         return jdbcTemplate.query(query,new BeanPropertyRowMapper<Course>(Course.class),empId,filter.getCompletionStatus(),filter.getDownDate(),filter.getTopDate(),offset,limit);
     }
 
-
-
     //Get Count of Courses that employee has accepted the request based on completion status
-    public int getCourseStatusCountForEmployee(String empId, String completionStatus){
+    public int getCourseStatusCountForEmployee(String empId, String completionStatus)
+    {
         String query = "select count(acceptedinvites.courseId) from acceptedinvites, course where acceptedinvites.courseId = course.courseId and course.completionStatus = ? and empId = ? ";
         return jdbcTemplate.queryForObject(query, Integer.class,completionStatus,empId);
     }
@@ -270,8 +285,9 @@ public class EmployeeService
         return null;
     }
 
-    public Integer notificationCount(String empId) {
-        String query = "select count(empId) from invites where empId=? and notificationSentStatus=0 ";
+    public Integer notificationCount(String empId)
+    {
+        String query = "select count(empId) from invites where empId=? and notificationSentStatus=0";
         try {
             return jdbcTemplate.queryForObject(query, Integer.class, empId);
         } catch (DataAccessException e) {
@@ -281,7 +297,7 @@ public class EmployeeService
 
     public Map<Integer,List<Notification>> notifications(String empId)
     {
-        String query1 = "select inviteId,courseId,empId from invites where empId=? and acceptanceStatus is null";
+        String query1 = "select inviteId,courseId,empId from invites where empId=? and acceptanceStatus is null order by inviteId desc";
         List<Notification> n=jdbcTemplate.query(query1,new BeanPropertyRowMapper<>(Notification.class),empId);
         String query2="update invites set notificationSentStatus=1  where empId=? and acceptanceStatus is null";
         jdbcTemplate.update(query2,empId);
@@ -289,8 +305,10 @@ public class EmployeeService
         map.put(n.size(),n);
         return map;
     }
+
     //profile photo upload
-    public String uploadProfilePhoto(MultipartFile profilePhoto,String empId) {
+    public String uploadProfilePhoto(MultipartFile profilePhoto,String empId)
+    {
         Cloudinary cloudinary = new Cloudinary(ObjectUtils.asMap(
                 "cloud_name", "do52xyv54",
                 "api_key", "815687279696268",
@@ -317,6 +335,7 @@ public class EmployeeService
         }
         return null;
     }
+
     public String viewProfilePhoto(String empId)
     {
         try

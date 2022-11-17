@@ -6,10 +6,9 @@ import java.sql.Date;
 
 
 @Data
-public class FilterByDate {
-
+public class FilterByDate
+{
     String completionStatus;
     Date downDate;
     Date topDate;
-
 }

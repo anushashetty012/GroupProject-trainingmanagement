@@ -7,9 +7,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class MultipleEmployeeRequest
 {
-    //int courseId;
     String empId;
-
     public MultipleEmployeeRequest(String empId)
     {
         this.empId = empId;

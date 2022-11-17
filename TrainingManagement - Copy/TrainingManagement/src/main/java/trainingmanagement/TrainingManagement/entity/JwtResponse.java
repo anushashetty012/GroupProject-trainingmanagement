@@ -7,7 +7,6 @@ public class JwtResponse {
 
     //private String jwtRefreshToken;
 
-
     //Constructor
     public JwtResponse(Employee employee, String jwtToken) {
         this.employee = employee;
