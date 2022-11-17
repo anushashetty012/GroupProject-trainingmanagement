@@ -62,9 +62,9 @@ public class AdminController
     //get the list of course based on completion status
     @GetMapping("/company/courses/{completionStatus}")
     @PreAuthorize("hasRole('admin')")
-    public ResponseEntity<?> getCourse(@PathVariable String completionStatus)
+    public ResponseEntity<?> getCourse(@PathVariable String completionStatus, @RequestParam int page, @RequestParam int limit)
     {
-        List<CourseList> courses = adminRepository.getCourse(completionStatus);
+        Map<Integer,List<CourseList>> courses = adminRepository.getCourse(completionStatus,page,limit);
         if (courses.size() == 0)
         {
             return new ResponseEntity<>("No "+completionStatus+" course in the company",HttpStatus.NOT_FOUND);
@@ -94,7 +94,7 @@ public class AdminController
 
     //to allocate course to manager
     //displays list of upcoming courses
-    @GetMapping("/allCourse")
+    @GetMapping("/courseToAssignManager")
     @PreAuthorize("hasRole('admin')")
     public ResponseEntity<?> getCourseToAssignManager(@RequestParam int page, @RequestParam int limit)
     {
@@ -105,6 +105,7 @@ public class AdminController
         }
         return ResponseEntity.of(Optional.of(courseList));
     }
+
     //gets the list of managers
     @GetMapping("/managers")
     @PreAuthorize("hasRole('admin')")

@@ -47,11 +47,19 @@ public class AdminService
     {
         return jdbcTemplate.queryForObject(TRAINING_COUNT, new Object[]{"completed"}, Integer.class);
     }
-    public List<CourseList> getCourse(String completionStatus)
+    public Map<Integer,List<CourseList>> getCourse(String completionStatus, int page, int limit)
     {
-        return jdbcTemplate.query(GET_COURSE,(rs, rowNum) -> {
+        Map map = new HashMap<Integer,List>();
+        offset = limit *(page-1);
+        List<CourseList> courses = jdbcTemplate.query(GET_COURSE,(rs, rowNum) -> {
             return new CourseList(rs.getInt("courseId"),rs.getString("courseName"),rs.getString("trainer"),rs.getString("trainingMode"),rs.getDate("startDate"),rs.getDate("endDate"),rs.getTime("duration"),rs.getTime("startTime"),rs.getTime("endTime"),rs.getString("completionStatus"));
         },completionStatus);
+        if (courses.size()!=0)
+        {
+            map.put(courses.size(),courses);
+            return map;
+        }
+        return null;
     }
     public Timestamp createTimestamp(Date date, Time time)
     {
