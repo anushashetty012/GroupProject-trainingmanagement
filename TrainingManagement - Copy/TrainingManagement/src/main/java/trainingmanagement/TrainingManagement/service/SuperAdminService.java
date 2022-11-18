@@ -47,7 +47,7 @@ public class SuperAdminService {
 
     public Employee registerNewEmployee(Employee employee) throws EmployeeExistException, EmployeeNotExistException {
         checkEmployeeExist(employee.getEmpId());
-        checkEmployeeDeleted(employee.getEmpId());
+        //checkEmployeeDeleted(employee.getEmpId());
         Roles roles = roleDao.findById("employee").get();
         Set<Roles> employeeRoles = new HashSet<>();
 
@@ -73,15 +73,11 @@ public class SuperAdminService {
     }
     public void checkEmployeeExist(String empId) throws EmployeeExistException
     {
-        String query="select emp_id from employee where emp_id=? ";
-        try
+        String query="select count(emp_id) from employee where emp_id=? ";
+        int i =jdbcTemplate.queryForObject(query,Integer.class,empId);
+        if (i == 1)
         {
-            String str=jdbcTemplate.queryForObject(query,String.class,empId);
-            throw new EmployeeExistException("Employee "+empId+" already Exist");
-
-        } catch (DataAccessException e) {
-
-
+            throw new EmployeeExistException("Employee already exist, create a new employee");
         }
     }
     public void checkEmployeeDeleted(String empId) throws EmployeeNotExistException
