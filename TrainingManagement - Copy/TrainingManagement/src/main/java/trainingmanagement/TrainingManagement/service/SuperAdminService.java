@@ -64,7 +64,7 @@ public class SuperAdminService {
         message.setSubject("Login credentials for Training management website");
         mailSender.send(message);
         employee.setPassword(getEncodedPassword(employee.getPassword()));
-        String query =  "insert into manager(empId) values(?)";
+        String query =  "insert into Manager(empId) values(?)";
         employeeDao.save(employee);
         jdbcTemplate.update(query,employee.getEmpId());
     }
@@ -141,6 +141,4 @@ public class SuperAdminService {
             throw new SuperAdminIdException("can't give super admin as employee");
         }
     }
-
-
 }
