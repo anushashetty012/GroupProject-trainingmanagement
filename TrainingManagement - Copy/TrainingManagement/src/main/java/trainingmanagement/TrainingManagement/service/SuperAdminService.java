@@ -10,6 +10,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import trainingmanagement.TrainingManagement.customException.EmployeeExistException;
 import trainingmanagement.TrainingManagement.customException.EmployeeNotExistException;
+import trainingmanagement.TrainingManagement.customException.SuperAdminIdException;
 import trainingmanagement.TrainingManagement.dao.EmployeeDao;
 import trainingmanagement.TrainingManagement.dao.RoleDao;
 import trainingmanagement.TrainingManagement.entity.Employee;
@@ -45,8 +46,9 @@ public class SuperAdminService {
     private String CHANGING_ROLES = "UPDATE employee_role SET role_name=? WHERE emp_id=?";
 
 
-    public Employee registerNewEmployee(Employee employee) throws EmployeeExistException, EmployeeNotExistException {
+    public void registerNewEmployee(Employee employee) throws EmployeeExistException, EmployeeNotExistException, SuperAdminIdException {
         checkEmployeeExist(employee.getEmpId());
+        isSuperAdminId(employee.getEmpId());
         //checkEmployeeDeleted(employee.getEmpId());
         Roles roles = roleDao.findById("employee").get();
         Set<Roles> employeeRoles = new HashSet<>();
@@ -61,23 +63,17 @@ public class SuperAdminService {
         message.setText(emailText);
         message.setSubject("Login credentials for Training management website");
         mailSender.send(message);
-        if(employee.getEmpId().equalsIgnoreCase("RT001"))
-        {
-            return null;
-        }
         employee.setPassword(getEncodedPassword(employee.getPassword()));
         String query =  "insert into manager(empId) values(?)";
         employeeDao.save(employee);
         jdbcTemplate.update(query,employee.getEmpId());
-        return employee;
     }
     public void checkEmployeeExist(String empId) throws EmployeeExistException
     {
         String query="select count(emp_id) from employee where emp_id=? ";
-        int i =jdbcTemplate.queryForObject(query,Integer.class,empId);
-        if (i == 1)
-        {
-            throw new EmployeeExistException("Employee already exist, create a new employee");
+        int i = jdbcTemplate.queryForObject(query, Integer.class,empId);
+        if(i == 1){
+            throw new EmployeeExistException("Employee Already Exist, Create a new employee Id");
         }
     }
     public void checkEmployeeDeleted(String empId) throws EmployeeNotExistException
@@ -92,8 +88,11 @@ public class SuperAdminService {
         }
     }
 
-    public String changeRole(EmployeeRole employeeRole)
-    {
+
+
+    public String changeRole(EmployeeRole employeeRole) throws EmployeeNotExistException, SuperAdminIdException {
+        isSuperAdminId(employeeRole.getEmpId());
+        checkEmployeeDeleted(employeeRole.getEmpId());
         jdbcTemplate.update(CHANGING_ROLES,employeeRole.getRoleName(),employeeRole.getEmpId());
         return "Role changed to "+employeeRole.getRoleName();
     }
@@ -113,15 +112,15 @@ public class SuperAdminService {
     {
         return passwordEncoder.encode(password);
     }
-    public void deleteEmployees(List<MultipleEmployeeRequest> empId) throws EmployeeNotExistException, EmployeeExistException {
+    public void deleteEmployees(List<MultipleEmployeeRequest> empId) throws EmployeeNotExistException, EmployeeExistException, SuperAdminIdException {
         for (MultipleEmployeeRequest emp:empId) {
             employeeExist(emp.getEmpId());
             checkEmployeeDeleted(emp.getEmpId());
             deleteEmployee(emp.getEmpId());
         }
     }
-    public void deleteEmployee(String empId)
-    {
+    public void deleteEmployee(String empId) throws SuperAdminIdException {
+        isSuperAdminId(empId);
         String query="update employee set delete_status=1 where emp_id=?";
         jdbcTemplate.update(query,empId);
     }
@@ -131,4 +130,17 @@ public class SuperAdminService {
         List<EmployeeProfile> a = jdbcTemplate.query(queryForEmployees,new BeanPropertyRowMapper<EmployeeProfile>(EmployeeProfile.class));
         return a;
     }
+
+
+
+    //New Function
+    public void isSuperAdminId(String empId) throws SuperAdminIdException
+    {
+        if(empId.equalsIgnoreCase("RT001"))
+        {
+            throw new SuperAdminIdException("can't give super admin as employee");
+        }
+    }
+
+
 }

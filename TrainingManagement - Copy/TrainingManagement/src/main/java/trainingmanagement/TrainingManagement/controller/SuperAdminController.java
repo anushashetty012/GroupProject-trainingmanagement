@@ -7,6 +7,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import trainingmanagement.TrainingManagement.customException.EmployeeExistException;
 import trainingmanagement.TrainingManagement.customException.EmployeeNotExistException;
+import trainingmanagement.TrainingManagement.customException.SuperAdminIdException;
 import trainingmanagement.TrainingManagement.entity.Employee;
 import trainingmanagement.TrainingManagement.entity.EmployeeRole;
 import trainingmanagement.TrainingManagement.request.MultipleEmployeeRequest;
@@ -25,34 +26,25 @@ public class SuperAdminController
     @PreAuthorize("hasRole('super_admin')")
     public ResponseEntity<String> registerEmployees(@RequestBody Employee employee)
     {
-        Employee registerStatus=null;
         try
         {
-             registerStatus = superAdminService.registerNewEmployee(employee);
+            superAdminService.registerNewEmployee(employee);
+            return ResponseEntity.of(Optional.of( " Registration successful"));
         }
-        catch (EmployeeExistException e)
+        catch (Exception e)
         {
-            return ResponseEntity.status(HttpStatus.OK).body(e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
         }
-        catch (EmployeeNotExistException e)
-        {
-            return ResponseEntity.status(HttpStatus.OK).body(e.getMessage());
-        }
-        if (registerStatus == null)
-        {
-            return new ResponseEntity<>("Employee already exist", HttpStatus.NOT_FOUND);
-        }
-        return ResponseEntity.of(Optional.of( " Registration successful"));
     }
 
     @PutMapping("/changeRole")
     @PreAuthorize("hasRole('super_admin')")
-    public ResponseEntity<String> changingRole(@RequestBody EmployeeRole employeeRole)
-    {
-        String roleStatus = superAdminService.changeRole(employeeRole);
-        if (roleStatus == null)
-        {
-            return ResponseEntity.status(HttpStatus.NOT_MODIFIED).build();
+    public ResponseEntity<String> changingRole(@RequestBody EmployeeRole employeeRole) throws EmployeeNotExistException {
+        String roleStatus = null;
+        try{
+            roleStatus = superAdminService.changeRole(employeeRole);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.NOT_MODIFIED).body(e.getMessage());
         }
         return ResponseEntity.of(Optional.of( roleStatus));
     }
@@ -69,7 +61,6 @@ public class SuperAdminController
         }
         catch (Exception e)
         {
-            System.out.println(e.getMessage());
             return ResponseEntity.status(HttpStatus.NOT_MODIFIED).body(e.getMessage());
         }
     }
