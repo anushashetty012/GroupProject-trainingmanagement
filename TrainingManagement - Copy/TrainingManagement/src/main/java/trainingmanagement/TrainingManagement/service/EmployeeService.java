@@ -287,7 +287,7 @@ public class EmployeeService
 
     public Integer notificationCount(String empId)
     {
-        String query = "select count(empId) from invites where empId=? and notificationSentStatus=0";
+        String query = "select count(empId) from invites where empId=? and notificationSentStatus=0 and acceptanceStatus is null";
         try {
             return jdbcTemplate.queryForObject(query, Integer.class, empId);
         } catch (DataAccessException e) {

@@ -83,11 +83,11 @@ public class AdminController
         }
         catch (CourseInfoIntegrityException e)
         {
-            return new ResponseEntity<>(e.getMessage(),HttpStatus.NOT_MODIFIED);
+            return new ResponseEntity<>(e.getMessage(),HttpStatus.INTERNAL_SERVER_ERROR);
         }
         if (course1 == null)
         {
-            return new ResponseEntity<>("Course is not created,please fill all the mandatory fields",HttpStatus.NOT_MODIFIED);
+            return new ResponseEntity<>("Course is not created,please fill all the mandatory fields",HttpStatus.INTERNAL_SERVER_ERROR);
         }
         return ResponseEntity.status(HttpStatus.OK).body(course1);
     }
@@ -140,7 +140,7 @@ public class AdminController
         String assignStatus = adminRepository.assignCourseToManager(courseId,courseToManager);
         if ( assignStatus == null )
         {
-            return new ResponseEntity<>("This course is already allocated to this manager",HttpStatus.NOT_MODIFIED);
+            return new ResponseEntity<>("This course is already allocated to this manager",HttpStatus.INTERNAL_SERVER_ERROR);
         }
         return ResponseEntity.of(Optional.of(assignStatus));
     }
@@ -152,12 +152,12 @@ public class AdminController
         try {
             updatedCourse = adminRepository.updateCourse(course);
         } catch (CourseInfoIntegrityException e) {
-            return new ResponseEntity<>(e.getMessage(),HttpStatus.NOT_MODIFIED);
+            return new ResponseEntity<>(e.getMessage(),HttpStatus.INTERNAL_SERVER_ERROR);
         }
         if(updatedCourse == 0){
-            return ResponseEntity.status(HttpStatus.NOT_MODIFIED).build();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to update the course");
         }
-        return ResponseEntity.of(Optional.of(updatedCourse));
+        return ResponseEntity.status(HttpStatus.OK).body("Updated successfully");
     }
 
     @PostMapping("/assignManager/employees")

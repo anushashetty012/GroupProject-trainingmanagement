@@ -22,7 +22,7 @@ import java.util.Map;
 public class AdminService
 {
     private String TRAINING_COUNT = "SELECT COUNT(courseId) FROM Course WHERE completionStatus=? and deleteStatus=false";
-    private String GET_COURSE = "SELECT courseId,courseName,trainer,trainingMode,startDate,endDate,duration,startTime,endTime,completionStatus FROM Course WHERE completionStatus=? and deleteStatus=false";
+    private String GET_COURSE = "SELECT courseId,courseName,trainer,trainingMode,startDate,endDate,duration,startTime,endTime,completionStatus FROM Course WHERE completionStatus=? and deleteStatus=false limit ?,?";
     private String CREATE_COURSE = "INSERT INTO Course(courseName,trainer,trainingMode,startDate,endDate,duration,startTime,endTime,meetingInfo,startTimestamp,endTimestamp) values(?,?,?,?,?,?,?,?,?,?,?)";
 
     //allocate project manager
@@ -53,7 +53,7 @@ public class AdminService
         offset = limit *(page-1);
         List<CourseList> courses = jdbcTemplate.query(GET_COURSE,(rs, rowNum) -> {
             return new CourseList(rs.getInt("courseId"),rs.getString("courseName"),rs.getString("trainer"),rs.getString("trainingMode"),rs.getDate("startDate"),rs.getDate("endDate"),rs.getTime("duration"),rs.getTime("startTime"),rs.getTime("endTime"),rs.getString("completionStatus"));
-        },completionStatus);
+        },completionStatus,page,limit);
         if (courses.size()!=0)
         {
             map.put(courses.size(),courses);
@@ -308,7 +308,7 @@ public class AdminService
     {
         isCourseExist(courseId,false);
         String query="update course set deleteStatus=1 where courseId=?";
-        jdbcTemplate.update(query);
+        jdbcTemplate.update(query,courseId);
     }
 
     public void isCourseExist(int courseId,boolean deleteStatus) throws CourseDeletionException

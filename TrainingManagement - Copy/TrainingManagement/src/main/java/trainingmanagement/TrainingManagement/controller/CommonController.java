@@ -119,27 +119,26 @@ public class CommonController
     //Get List of All Employees
     @GetMapping("/employees")
     @PreAuthorize("hasRole('admin') or hasRole('manager')")
-    public ResponseEntity<?> getEmployeeList(Authentication authentication)
+    public ResponseEntity<?> getEmployeeList(Authentication authentication,@RequestParam int page, @RequestParam int limit)
     {
         String empId = authentication.getName();
-        List<EmployeeDetails> empData = commonService.employeeDetails(empId);
+        Map<Integer,List<EmployeeDetails>> empData = commonService.employeeDetails(empId,page,limit);
         if (empData.size() == 0)
         {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("No employees found");
         }
         return ResponseEntity.of(Optional.of(empData));
     }
 
     @GetMapping("/employees/{searchKey}")
     @PreAuthorize("hasRole('admin') or hasRole('manager')")
-    public ResponseEntity<List<EmployeeDetails>> getEmployeeListBySearchKey(Authentication authentication, @PathVariable String searchKey)
+    public ResponseEntity<?> getEmployeeListBySearchKey(Authentication authentication, @PathVariable String searchKey,@RequestParam int page, @RequestParam int limit)
     {
         String empId = authentication.getName();
-
-        List<EmployeeDetails> empData = commonService.employeeDetailsBySearchKey(empId,searchKey);
+        Map<Integer,List<EmployeeDetails>> empData = commonService.employeeDetailsBySearchKey(empId,searchKey,page,limit);
         if (empData.size() == 0)
         {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("No employees found");
         }
         return ResponseEntity.of(Optional.of(empData));
     }

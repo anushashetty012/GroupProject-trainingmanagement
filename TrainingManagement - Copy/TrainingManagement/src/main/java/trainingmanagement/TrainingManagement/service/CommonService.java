@@ -66,7 +66,6 @@ public class CommonService
             String completionStatus = jdbcTemplate.queryForObject(GET_COMPLETION_STATUS,new Object[]{courseId},String.class);
             if (completionStatus.equalsIgnoreCase("active") || completionStatus.equalsIgnoreCase("upcoming"))
             {
-
                 return "Attendees: "+attendeesCount;
             }
             int attendeesforCompletedCourse = jdbcTemplate.queryForObject("select count(empId) from acceptedInvites where courseId=? and deleteStatus=false",new Object[]{courseId}, Integer.class);
@@ -335,6 +334,7 @@ public class CommonService
             return e.getMessage();
         }
         int noOfInvites = inviteToEmployees.size();
+        int count = 0;
         if(getRole((empId)).equalsIgnoreCase("admin"))
         {
             for (int i=0; i<noOfInvites; i++)
@@ -343,9 +343,15 @@ public class CommonService
                 List<Employee> isInvited = jdbcTemplate.query("SELECT emp_id FROM Employee,Invites WHERE Employee.emp_id=? and Employee.emp_id<>'RT001' and Employee.emp_id=Invites.empId and courseId=? and (acceptanceStatus=true or acceptanceStatus is null)", (rs, rowNum) -> {
                     return new Employee(rs.getString("emp_Id"));
                 }, inviteToEmployees.get(i).getEmpId(), courseId);
-                if (isInvited.size() == 0) {
+                if (isInvited.size() == 0)
+                {
+                    count++;
                     jdbcTemplate.update(INVITE_EMPLOYEES, new Object[]{inviteToEmployees.get(i).getEmpId(), courseId,});
                 }
+            }
+            if (count == 0)
+            {
+                return "They are already invited for this course";
             }
         }
         if (getRole((empId)).equalsIgnoreCase("manager"))
@@ -362,8 +368,13 @@ public class CommonService
                     }, inviteToEmployees.get(i).getEmpId(), courseId);
                     if (isInvited.size() == 0)
                     {
+                        count++;
                         jdbcTemplate.update(INVITE_EMPLOYEES,new Object[]{inviteToEmployees.get(i).getEmpId(),courseId});
                     }
+                }
+                if (count == 0)
+                {
+                    return "They are already invited for this course";
                 }
             }
             else
@@ -376,7 +387,7 @@ public class CommonService
 
     public void isInviteListValid(int courseId,List<MultipleEmployeeRequest> deleteInvites) throws Exception
     {
-        String query = "select empId from invites where courseId=? and (acceptanceStatus =1 or acceptanceStatus is null) and empId=?";
+        String query = "select empId from invites where courseId=? and (acceptanceStatus = 1 or acceptanceStatus is null) and empId=?";
         for (MultipleEmployeeRequest emp:deleteInvites)
         {
             try
@@ -438,83 +449,92 @@ public class CommonService
     }
 
     //Checks if the role is manager or admin and calls the corresponding function
-    public List<EmployeeDetails> employeeDetails(String empId)
+    public Map<Integer,List<EmployeeDetails>> employeeDetails(String empId,int page, int limit)
     {
+        Map map = new HashMap<Integer,List<EmployeeDetails>>();
+        offset = limit *(page-1);
         String role = getRole(empId);
         List<EmployeeDetails> employeeDetails;
         if(role.equals("admin")){
-            employeeDetails= employeeDetailsListForAdmin();
+            employeeDetails= employeeDetailsListForAdmin(offset,limit);
         }else{
-            employeeDetails= employeeDetailsListForManager(empId);
+            employeeDetails= employeeDetailsListForManager(empId,offset,limit);
         }
-        return mapEmployeeToCourseStatusCount(employeeDetails);
+        List<EmployeeDetails> employeeDetailsList = mapEmployeeToCourseStatusCount(employeeDetails);
+        map.put(employeeDetailsList.size(),employeeDetailsList);
+        return map;
+
     }
 
 
     //Gives List of Employees for Admin
-    public List<EmployeeDetails> employeeDetailsListForAdmin()
+    public List<EmployeeDetails> employeeDetailsListForAdmin(int offset,int limit)
     {
-        String queryForEmployees = "SELECT emp_id, emp_name, designation FROM employee WHERE delete_status = 0 AND emp_id <> 'RT001' ";
-        List<EmployeeDetails> a = jdbcTemplate.query(queryForEmployees,new BeanPropertyRowMapper<EmployeeDetails>(EmployeeDetails.class));
+        String queryForEmployees = "SELECT emp_id, emp_name, designation FROM employee WHERE delete_status = 0 AND emp_id <> 'RT001' limit ?,?";
+        List<EmployeeDetails> a = jdbcTemplate.query(queryForEmployees,new BeanPropertyRowMapper<EmployeeDetails>(EmployeeDetails.class),offset,limit);
         return a;
 
     }
 
     //Gives List of Employees for Manager
-    public List<EmployeeDetails> employeeDetailsListForManager(String managerId)
+    public List<EmployeeDetails> employeeDetailsListForManager(String managerId,int offset,int limit)
     {
-        String queryForEmployees = "SELECT emp_id, emp_name, designation FROM employee, manager WHERE employee.emp_id = manager.empId and manager.managerId = ? AND delete_status = 0 AND emp_id <> 'RT001' ";
+        String queryForEmployees = "SELECT emp_id, emp_name, designation FROM employee, manager WHERE employee.emp_id = manager.empId and manager.managerId = ? AND delete_status = 0 AND emp_id <> 'RT001' limit ?,?";
 
-        return jdbcTemplate.query(queryForEmployees,new BeanPropertyRowMapper<EmployeeDetails>(EmployeeDetails.class),managerId);
+        return jdbcTemplate.query(queryForEmployees,new BeanPropertyRowMapper<EmployeeDetails>(EmployeeDetails.class),managerId,offset,limit);
     }
 
     //Get Employee Course Status count
     public Integer getActiveCourseCountForEmployee(String empId)
     {
-        String query = "SELECT COUNT(empId) as c FROM AcceptedInvites, Course WHERE course.courseId = AcceptedInvites.courseId and empId = ? and course.completionStatus = 'active' ";
+        String query = "SELECT COUNT(empId) as c FROM AcceptedInvites, Course WHERE course.courseId = AcceptedInvites.courseId and empId = ? and course.completionStatus = 'active' and AcceptedInvites.deleteStatus = false and Course.deleteStatus=false";
         return jdbcTemplate.queryForObject(query,Integer.class,empId);
     }
 
     public Integer getUpcomingCourseCountForEmployee(String empId)
     {
-        String query = "SELECT COUNT(empId) FROM AcceptedInvites, Course WHERE course.courseId = AcceptedInvites.courseId and empId = ?  and course.completionStatus = 'upcoming' ";
+        String query = "SELECT COUNT(empId) FROM AcceptedInvites, Course WHERE course.courseId = AcceptedInvites.courseId and empId = ?  and course.completionStatus = 'upcoming' and AcceptedInvites.deleteStatus = false and Course.deleteStatus=false";
         return jdbcTemplate.queryForObject(query, Integer.class,empId);
     }
 
     //count of completed course
     public Integer getAttendedCourseCountForEmployee(String empId)
     {
-        String query = "SELECT COUNT(empId) FROM AcceptedInvites, Course WHERE course.courseId = AcceptedInvites.courseId and empId = ?  and course.completionStatus = 'completed' ";
+        String query = "SELECT COUNT(empId) FROM AcceptedInvites, Course WHERE course.courseId = AcceptedInvites.courseId and empId = ?  and course.completionStatus = 'completed' and AcceptedInvites.deleteStatus = false and Course.deleteStatus=false";
         return jdbcTemplate.queryForObject(query, Integer.class,empId);
     }
 
     //Employee Details Based on Search Key   (Method)
-    public List<EmployeeDetails> employeeDetailsBySearchKey(String empId,String searchKey)
+    public Map<Integer,List<EmployeeDetails>> employeeDetailsBySearchKey(String empId,String searchKey,int page,int limit)
     {
+        Map map = new HashMap<Integer,List<EmployeeDetails>>();
+        offset = limit *(page-1);
         String role = getRole(empId);
         List<EmployeeDetails> employeeDetails;
         if(role.equals("admin")){
-            employeeDetails= employeeDetailsListForAdminBySearchKey(searchKey);
+            employeeDetails= employeeDetailsListForAdminBySearchKey(searchKey,offset,limit);
         }else{
-            employeeDetails= employeeDetailsListForManagerBySearchKey(empId,searchKey);
+            employeeDetails= employeeDetailsListForManagerBySearchKey(empId,searchKey,offset,limit);
         }
-        return mapEmployeeToCourseStatusCount(employeeDetails);
+        List<EmployeeDetails> employeeDetailsList =  mapEmployeeToCourseStatusCount(employeeDetails);
+        map.put(employeeDetailsList.size(),employeeDetailsList);
+        return map;
     }
 
-    public List<EmployeeDetails> employeeDetailsListForAdminBySearchKey(String searchKey)
+    public List<EmployeeDetails> employeeDetailsListForAdminBySearchKey(String searchKey,int offset,int limit)
     {
 
-        String queryForEmployees = "SELECT emp_id, emp_name, designation FROM employee WHERE (emp_id = ? or emp_name like ? or designation like ?) and delete_status = 0 AND emp_id <> 'RT001' ";
-        List<EmployeeDetails> a = jdbcTemplate.query(queryForEmployees,new BeanPropertyRowMapper<EmployeeDetails>(EmployeeDetails.class),searchKey,"%"+searchKey+"%","%"+searchKey+"%");
+        String queryForEmployees = "SELECT emp_id, emp_name, designation FROM employee WHERE (emp_id = ? or emp_name like ? or designation like ?) and delete_status = 0 AND emp_id <> 'RT001' limit ?,?";
+        List<EmployeeDetails> a = jdbcTemplate.query(queryForEmployees,new BeanPropertyRowMapper<EmployeeDetails>(EmployeeDetails.class),searchKey,"%"+searchKey+"%","%"+searchKey+"%",offset,limit);
         return a;
     }
 
     //Gives List of Employees for Manager
-    public List<EmployeeDetails> employeeDetailsListForManagerBySearchKey(String managerId, String searchKey)
+    public List<EmployeeDetails> employeeDetailsListForManagerBySearchKey(String managerId, String searchKey,int offset,int limit)
     {
-        String queryForEmployees = "SELECT emp_id, emp_name, designation FROM employee, manager WHERE employee.emp_id = manager.empId and (emp_id = ? or emp_name like ? or designation like ?) and manager.managerId = ? AND delete_status = 0 AND emp_id <> 'RT001' ";
+        String queryForEmployees = "SELECT emp_id, emp_name, designation FROM employee, manager WHERE employee.emp_id = manager.empId and (emp_id = ? or emp_name like ? or designation like ?) and manager.managerId = ? AND delete_status = 0 AND emp_id <> 'RT001' limit ?,?";
 
-        return jdbcTemplate.query(queryForEmployees,new BeanPropertyRowMapper<EmployeeDetails>(EmployeeDetails.class),searchKey,"%"+searchKey+"%","%"+searchKey+"%",managerId);
+        return jdbcTemplate.query(queryForEmployees,new BeanPropertyRowMapper<EmployeeDetails>(EmployeeDetails.class),searchKey,"%"+searchKey+"%","%"+searchKey+"%",managerId,offset,limit);
     }
 
     //Filter Course based on date and Completion status for Active and Upcoming
