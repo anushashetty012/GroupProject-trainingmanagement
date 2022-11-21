@@ -65,7 +65,7 @@ public class AdminController
     public ResponseEntity<?> getCourse(@PathVariable String completionStatus, @RequestParam int page, @RequestParam int limit)
     {
         Map<Integer,List<CourseList>> courses = adminRepository.getCourse(completionStatus,page,limit);
-        if (courses.size() == 0)
+        if (courses == null)
         {
             return new ResponseEntity<>("No "+completionStatus+" course in the company",HttpStatus.NOT_FOUND);
         }
@@ -137,7 +137,14 @@ public class AdminController
     @PreAuthorize("hasRole('admin')")
     public ResponseEntity<String> assignCourseToManager(@PathVariable int courseId, @RequestBody List<MultipleEmployeeRequest> courseToManager)
     {
-        String assignStatus = adminRepository.assignCourseToManager(courseId,courseToManager);
+        String assignStatus;
+        try
+        {
+            assignStatus = adminRepository.assignCourseToManager(courseId,courseToManager);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        }
+
         if ( assignStatus == null )
         {
             return new ResponseEntity<>("This course is already allocated to this manager",HttpStatus.INTERNAL_SERVER_ERROR);

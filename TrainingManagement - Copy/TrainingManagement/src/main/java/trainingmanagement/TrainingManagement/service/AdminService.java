@@ -14,6 +14,7 @@ import trainingmanagement.TrainingManagement.response.EmployeeInfo;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.time.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,7 +28,7 @@ public class AdminService
 
     //allocate project manager
     private String COURSES_TO_MANAGER = "SELECT courseId,courseName,trainer,trainingMode,startDate,endDate,duration,startTime,endTime,completionStatus FROM Course WHERE completionStatus='upcoming' and deleteStatus=false LIMIT ?,?";
-    private String GET_MANAGERS = "SELECT Employee.emp_Id,emp_Name,designation FROM Employee, employee_role WHERE Employee.emp_id = employee_role.emp_id and employee_role.role_name='manager' AND Employee.delete_status=false LIMIT ?,?";
+    private String GET_MANAGERS = "SELECT employee.emp_Id,emp_Name,designation FROM employee, employee_role WHERE employee.emp_id = employee_role.emp_id and employee_role.role_name='manager' AND employee.delete_status=false LIMIT ?,?";
     private String ASSIGN_MANAGER = "INSERT INTO ManagersCourses(managerId,courseId) VALUES(?,?)";
     int offset=0;
 
@@ -63,12 +64,12 @@ public class AdminService
     }
     public Timestamp createTimestamp(Date date, Time time)
     {
-
         Timestamp t= new Timestamp(date.getYear(), date.getMonth(), date.getDate(), time.getHours(), time.getMinutes(), time.getSeconds(),0);
         return t;
     }
 
-    public String createCourse(Course course) throws CourseInfoIntegrityException {
+    public String createCourse(Course course) throws CourseInfoIntegrityException
+    {
         courseInfoIntegrity(course);
         Timestamp startTimestamp=createTimestamp(course.getStartDate(),course.getStartTime());
         Timestamp endTimestamp=null;
@@ -116,7 +117,7 @@ public class AdminService
 
     public Map<Integer,List<EmployeeInfo>> getManagersBySearchkey(int page, int limit, String searchKey)
     {
-        String GET_MANAGERS = "SELECT Employee.emp_Id,emp_Name,designation FROM Employee, employee_role WHERE Employee.emp_id = employee_role.emp_id and employee_role.role_name='manager' AND Employee.delete_status=false and (Employee.emp_id=? or Employee.emp_name like ? or Employee.designation like ?) LIMIT ?,?";
+        String GET_MANAGERS = "SELECT employee.emp_id,emp_name,designation FROM employee, employee_role WHERE employee.emp_id = employee_role.emp_id and employee_role.role_name='manager' AND employee.delete_status=false and (employee.emp_id=? or employee.emp_name like ? or employee.designation like ?) LIMIT ?,?";
         Map map = new HashMap<Integer,List>();
         offset = limit *(page-1);
         List<EmployeeInfo> employeeDetails =  jdbcTemplate.query(GET_MANAGERS,(rs, rowNum) -> {
@@ -129,13 +130,20 @@ public class AdminService
         }
         return null;
     }
-
-    public String assignCourseToManager(int courseId, List<MultipleEmployeeRequest> courseToManager)
+    public void checkManagersList( List<MultipleEmployeeRequest> courseToManager)
     {
+
+    }
+
+    public String assignCourseToManager(int courseId, List<MultipleEmployeeRequest> courseToManager) throws ManagerNotExistException, SuperAdminIdException {
+
         int count=0;
         int noOfManagers = courseToManager.size();
         for (int i = 0; i < noOfManagers; i++)
         {
+
+            checkManagerExist(courseToManager.get(i).getEmpId());
+            isSuperAdminId(courseToManager.get(i).getEmpId());
             String query = "select managerId from ManagersCourses where managerId=? and courseId=?";
             List<ManagersCourses> managerId = jdbcTemplate.query(query, (rs, rowNum) -> {
                 return new ManagersCourses(rs.getString("managerId"));
@@ -169,8 +177,21 @@ public class AdminService
         } catch (CourseInfoIntegrityException e) {
 
         }
-        String query = "update course set courseName =?, trainer=?, trainingMode=?, startDate=?, endDate =?, duration=?, startTime =?, endTime =?, meetingInfo=?,startTimestamp=?,endTimestamp=? where courseId = ? and deleteStatus=0";
+        String query = "update Course set courseName =?, trainer=?, trainingMode=?, startDate=?, endDate =?, duration=?, startTime =?, endTime =?, meetingInfo=?,startTimestamp=?,endTimestamp=? where courseId = ? and deleteStatus=0";
         return jdbcTemplate.update(query, course.getCourseName(),course.getTrainer(),course.getTrainingMode(),course.getStartDate(),course.getEndDate(),course.getDuration(),course.getStartTime(),course.getEndTime(),course.getMeetingInfo(),startTimestamp,endTimestamp,course.getCourseId());
+    }
+    public void checkStartTimeForCurrentDate(Course course) throws CourseInfoIntegrityException
+    {
+        Instant instant = Instant.now();
+        String d1 = instant.toString();
+        Instant s = Instant.parse(d1);
+        ZoneId.of("Asia/Kolkata");
+        LocalDateTime l = LocalDateTime.ofInstant(s, ZoneId.of("Asia/Kolkata"));
+        Timestamp startTimestamp=createTimestamp(course.getStartDate(),course.getStartTime());
+        if (0 > startTimestamp.compareTo(Timestamp.valueOf(l)))
+        {
+            throw new CourseInfoIntegrityException("Start time should be greater than current time");
+        }
     }
 
     public void checkStartTimeExist(Course course) throws CourseInfoIntegrityException
@@ -198,7 +219,7 @@ public class AdminService
             int i=course.getStartTime().compareTo(course.getEndTime());
             if(!(i<0))
             {
-                throw new CourseInfoIntegrityException("start time should be smaller end time");
+                throw new CourseInfoIntegrityException("start time should be smaller than end time");
             }
         }
     }
@@ -206,17 +227,30 @@ public class AdminService
     {
         if (course.getCourseName().isEmpty())
         {
-            throw new CourseInfoIntegrityException("CourseName can't be empty");
+            throw new CourseInfoIntegrityException("Course Name can't be empty");
         }
         courseModeIntegrity(course.getTrainingMode());
         long millis=System.currentTimeMillis();
         java.sql.Date date=new java.sql.Date(millis);
         String str= date.toString();
 
-        if(0>course.getStartDate().compareTo(Date.valueOf(str)))
+
+        LocalDate currentDate = Date.valueOf(str).toLocalDate();
+        LocalDate startDate = course.getStartDate().toLocalDate();
+
+
+        int startToCurrentDateStatus = currentDate.compareTo(startDate);
+
+        if(0 < startToCurrentDateStatus)
         {
             throw new CourseInfoIntegrityException("start date can't be before  current date");
         }
+        if (startToCurrentDateStatus == 0)
+        {
+            checkStartTimeExist(course);
+            checkStartTimeForCurrentDate(course);
+        }
+
         try {
             int i=course.getStartDate().compareTo(course.getEndDate());
             if(i>0)
