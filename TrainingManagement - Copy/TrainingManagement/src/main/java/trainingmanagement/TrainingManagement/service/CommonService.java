@@ -12,7 +12,6 @@ import trainingmanagement.TrainingManagement.entity.Course;
 import trainingmanagement.TrainingManagement.entity.Employee;
 import trainingmanagement.TrainingManagement.entity.ManagersCourses;
 import trainingmanagement.TrainingManagement.request.FilterByDate;
-import trainingmanagement.TrainingManagement.response.CourseList;
 import trainingmanagement.TrainingManagement.response.EmployeeDetails;
 import trainingmanagement.TrainingManagement.response.EmployeeInvite;
 import trainingmanagement.TrainingManagement.request.MultipleEmployeeRequest;
@@ -104,6 +103,7 @@ public class CommonService
         }
         return null;
     }
+
     public String getAttendeesAndNonAttendeesCount(int courseId,String empId)
     {
         if(getRole((empId)).equalsIgnoreCase("admin"))
@@ -142,6 +142,7 @@ public class CommonService
         }
         return null;
     }
+
     public Map<Integer,List<EmployeeProfile>> attendingEmployeeForManager(int courseId,String empId,int offset,int limit,Map<Integer,List<EmployeeProfile>> map)
     {
         try
@@ -270,6 +271,7 @@ public class CommonService
         employeeList2.addAll(employeeList1);
         return employeeList2;
     }
+
     public List<EmployeeInvite> employeesToInviteForManager(int courseId, String empId)
     {
         List<EmployeeInvite> employeeList;
@@ -326,20 +328,23 @@ public class CommonService
         }
         return null;
     }
-    public void checkEmployeeUnderManager(List<MultipleEmployeeRequest> inviteToEmployees, String empId) throws EmployeeNotUnderManagerException {
-        for (MultipleEmployeeRequest emp:inviteToEmployees) {
+    public void checkEmployeeUnderManager(List<MultipleEmployeeRequest> inviteToEmployees, String empId) throws EmployeeNotUnderManagerException
+    {
+        for (MultipleEmployeeRequest emp:inviteToEmployees)
+        {
             fetchEmployeeForManager(emp.getEmpId(),empId);
         }
     }
-    public void fetchEmployeeForManager(String empId, String managerId) throws EmployeeNotUnderManagerException {
+    public void fetchEmployeeForManager(String empId, String managerId) throws EmployeeNotUnderManagerException
+    {
         String query = "select empId from Manager,employee where employee.emp_id = Manager.empId and Manager.managerId=? and employee.emp_id=? and employee.delete_status=0";
         try
         {
             jdbcTemplate.queryForObject(query, String.class,managerId,empId);
-        } catch (DataAccessException e) {
+        }
+        catch (DataAccessException e) {
             throw new EmployeeNotUnderManagerException("Employee not under manager");
         }
-
     }
 
     public void checkEmployeeExist(String empId) throws EmployeeNotExistException
@@ -355,7 +360,8 @@ public class CommonService
         }
     }
 
-    public void checkEmployeesExist(List<MultipleEmployeeRequest> inviteToEmployees) throws EmployeeNotExistException {
+    public void checkEmployeesExist(List<MultipleEmployeeRequest> inviteToEmployees) throws EmployeeNotExistException
+    {
         for (MultipleEmployeeRequest emp:inviteToEmployees)
         {
             checkEmployeeExist(emp.getEmpId());
@@ -435,9 +441,24 @@ public class CommonService
         }
     }
 
+    public void checkCourseStatus(int courseId) throws Exception
+    {
+        String query = "select courseId from Course where courseId=? and completionStatus='upcoming' and deleteStatus=0";
+        try
+        {
+            jdbcTemplate.queryForObject(query, Integer.class,courseId);
+        }
+        catch (DataAccessException e)
+        {
+            throw new Exception("Cannot delete invite because course is active/completed");
+        }
+    }
+
     //to delete invite
     public String deleteInvite(int courseId, List<MultipleEmployeeRequest> deleteInvites,String empId) throws Exception
     {
+        checkCourseStatus(courseId);
+        checkEmployeesExist(deleteInvites);
         isInviteListValid(courseId, deleteInvites);
         int noOfInvites = deleteInvites.size();
         if(getRole((empId)).equalsIgnoreCase("admin"))
@@ -468,7 +489,6 @@ public class CommonService
         return "Deleted invite successfully";
     }
 
-
     public List<EmployeeDetails> mapEmployeeToCourseStatusCount(List<EmployeeDetails> employeeDetails)
     {
         for (EmployeeDetails e:employeeDetails)
@@ -491,9 +511,12 @@ public class CommonService
         offset = limit *(page-1);
         String role = getRole(empId);
         List<EmployeeDetails> employeeDetails;
-        if(role.equals("admin")){
+        if(role.equals("admin"))
+        {
             employeeDetails= employeeDetailsListForAdmin(offset,limit);
-        }else{
+        }
+        else
+        {
             employeeDetails= employeeDetailsListForManager(empId,offset,limit);
         }
         List<EmployeeDetails> employeeDetailsList = mapEmployeeToCourseStatusCount(employeeDetails);
@@ -502,14 +525,12 @@ public class CommonService
 
     }
 
-
     //Gives List of Employees for Admin
     public List<EmployeeDetails> employeeDetailsListForAdmin(int offset,int limit)
     {
         String queryForEmployees = "SELECT emp_id, emp_name, designation FROM employee WHERE delete_status = 0 AND employee.emp_id <> 'RT001' limit ?,?";
         List<EmployeeDetails> a = jdbcTemplate.query(queryForEmployees,new BeanPropertyRowMapper<EmployeeDetails>(EmployeeDetails.class),offset,limit);
         return a;
-
     }
 
     //Gives List of Employees for Manager
@@ -547,9 +568,12 @@ public class CommonService
         offset = limit *(page-1);
         String role = getRole(empId);
         List<EmployeeDetails> employeeDetails;
-        if(role.equals("admin")){
+        if(role.equals("admin"))
+        {
             employeeDetails= employeeDetailsListForAdminBySearchKey(searchKey,offset,limit);
-        }else{
+        }
+        else
+        {
             employeeDetails= employeeDetailsListForManagerBySearchKey(empId,searchKey,offset,limit);
         }
         List<EmployeeDetails> employeeDetailsList =  mapEmployeeToCourseStatusCount(employeeDetails);
@@ -569,7 +593,6 @@ public class CommonService
     public List<EmployeeDetails> employeeDetailsListForManagerBySearchKey(String managerId, String searchKey,int offset,int limit)
     {
         String queryForEmployees = "SELECT emp_id, emp_name, designation FROM employee, Manager WHERE employee.emp_id = Manager.empId and (emp_id = ? or emp_name like ? or designation like ?) and Manager.managerId = ? AND delete_status = 0 AND employee.emp_id <> 'RT001' limit ?,?";
-
         return jdbcTemplate.query(queryForEmployees,new BeanPropertyRowMapper<EmployeeDetails>(EmployeeDetails.class),searchKey,"%"+searchKey+"%","%"+searchKey+"%",managerId,offset,limit);
     }
 
@@ -608,7 +631,8 @@ public class CommonService
         if(role.equals("admin") )
         {
             List<Course> filteredCourse=null;
-            if (filter.getCompletionStatus().matches("active|upcoming")){
+            if (filter.getCompletionStatus().matches("active|upcoming"))
+            {
                 filteredCourse = FilterCoursesForAdminByActiveAndUpcomingStatus(filter,offset,limit);
                 map.put(filteredCourse.size(),filteredCourse);
                 return map;
@@ -619,7 +643,6 @@ public class CommonService
                 map.put(filteredCourse.size(),filteredCourse);
                 return map;
             }
-
         }
         else
         {

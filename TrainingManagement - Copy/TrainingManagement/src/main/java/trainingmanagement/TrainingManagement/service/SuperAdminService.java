@@ -23,8 +23,8 @@ import trainingmanagement.TrainingManagement.response.EmployeeProfile;
 import java.util.*;
 
 @Service
-public class SuperAdminService {
-
+public class SuperAdminService
+{
     @Autowired
     private EmployeeDao employeeDao;
     @Autowired
@@ -44,8 +44,8 @@ public class SuperAdminService {
     private String CHANGING_ROLES = "UPDATE employee_role SET role_name=? WHERE emp_id=?";
     int offset=0;
 
-
-    public void registerNewEmployee(Employee employee) throws EmployeeExistException, EmployeeNotExistException, SuperAdminIdException {
+    public void registerNewEmployee(Employee employee) throws EmployeeExistException, EmployeeNotExistException, SuperAdminIdException
+    {
         checkEmployeeExist(employee.getEmpId());
         isSuperAdminId(employee.getEmpId());
         //checkEmployeeDeleted(employee.getEmpId());
@@ -71,33 +71,45 @@ public class SuperAdminService {
     {
         String query="select count(emp_id) from employee where emp_id=? ";
         int i = jdbcTemplate.queryForObject(query, Integer.class,empId);
-        if(i == 1){
+        if(i == 1)
+        {
             throw new EmployeeExistException("Employee Already Exist, Create a new employee Id");
         }
     }
+
     public void checkEmployeeDeleted(String empId) throws EmployeeNotExistException
     {
         String query="select emp_id from employee where emp_id=? and delete_status=0";
         try
         {
             String str=jdbcTemplate.queryForObject(query,String.class,empId);
-        } catch (DataAccessException e)
+        }
+        catch (DataAccessException e)
         {
             throw new EmployeeNotExistException("Employee "+empId+" already deleted");
         }
     }
 
-
-
-    public String changeRole(EmployeeRole employeeRole) throws EmployeeNotExistException, SuperAdminIdException, EmployeeExistException {
+    public String changeRole(EmployeeRole employeeRole) throws EmployeeNotExistException, SuperAdminIdException, EmployeeExistException
+    {
         isSuperAdminId(employeeRole.getEmpId());
         employeeExist(employeeRole.getEmpId());
         checkEmployeeDeleted(employeeRole.getEmpId());
         jdbcTemplate.update(CHANGING_ROLES,employeeRole.getRoleName(),employeeRole.getEmpId());
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom("spring.email.from@gmail.com");
+        String query = "select email from employee where emp_id=?";
+        String email = jdbcTemplate.queryForObject(query, String.class,employeeRole.getEmpId());
+        message.setTo(email);
+        String emailText ="Your role is changed to "+employeeRole.getRoleName();
+        message.setText(emailText);
+        message.setSubject("Role changed");
+        mailSender.send(message);
         return "Role changed to "+employeeRole.getRoleName();
     }
 
-    public void employeeExist(String empId) throws EmployeeExistException {
+    public void employeeExist(String empId) throws EmployeeExistException
+    {
         String query="select emp_id from employee where emp_id=? ";
         try
         {
@@ -112,18 +124,23 @@ public class SuperAdminService {
     {
         return passwordEncoder.encode(password);
     }
-    public void deleteEmployees(List<MultipleEmployeeRequest> empId) throws EmployeeNotExistException, EmployeeExistException, SuperAdminIdException {
-        for (MultipleEmployeeRequest emp:empId) {
+    public void deleteEmployees(List<MultipleEmployeeRequest> empId) throws EmployeeNotExistException, EmployeeExistException, SuperAdminIdException
+    {
+        for (MultipleEmployeeRequest emp:empId)
+        {
             employeeExist(emp.getEmpId());
             checkEmployeeDeleted(emp.getEmpId());
             deleteEmployee(emp.getEmpId());
         }
     }
-    public void deleteEmployee(String empId) throws SuperAdminIdException {
+
+    public void deleteEmployee(String empId) throws SuperAdminIdException
+    {
         isSuperAdminId(empId);
         String query="update employee set delete_status=1 where emp_id=?";
         jdbcTemplate.update(query,empId);
     }
+
     public Map<Integer,List<EmployeeProfile>> employeeDetailsListForSuperAdmin(int page, int limit)
     {
         Map map = new HashMap<Integer,List>();
@@ -134,9 +151,6 @@ public class SuperAdminService {
         return map;
     }
 
-
-
-    //New Function
     public void isSuperAdminId(String empId) throws SuperAdminIdException
     {
         if(empId.equalsIgnoreCase("RT001"))
