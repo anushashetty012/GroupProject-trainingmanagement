@@ -134,6 +134,20 @@ public class EmployeeService
         }
     }
 
+    public void removeFromRejectedAndInvites(int inviteId)
+    {
+        InviteDetail inviteDetail = getInviteDetail(inviteId);
+        String query = "delete from RejectedInvites where courseId=? and empId=?";
+        String query1 = "delete from Invites where courseId=? and empId=? and acceptanceStatus=0";
+        jdbcTemplate.update(query,inviteDetail.getCourseId(),inviteDetail.getEmpId());
+        jdbcTemplate.update(query1,inviteDetail.getCourseId(),inviteDetail.getEmpId());
+    }
+    public InviteDetail getInviteDetail(int inviteId)
+    {
+        String query = "select courseId,empId from Invites where inviteId=?";
+        return jdbcTemplate.query(query,new BeanPropertyRowMapper<>(InviteDetail.class),inviteId).get(0);
+    }
+
     public String acceptInvite(int inviteId)
     {
         try
@@ -149,6 +163,7 @@ public class EmployeeService
         {
             return null;
         }
+        removeFromRejectedAndInvites(inviteId);
         return "Accepted invite successfully";
     }
 
@@ -215,7 +230,7 @@ public class EmployeeService
         {
             Map map = new HashMap<Integer,List>();
             offset = limit *(page-1);
-            List<NonAttendedCourse> nonAttendedCourseList = jdbcTemplate.query("select Course.courseId,courseName,trainer,trainingMode,startDate,endDate,reason from Course,RejectedInvites where Course.courseId = RejectedInvites.courseId and Course.deleteStatus=false and RejectedInvites.empId=? limit ?,?",(rs, rowNum) -> {
+            List<NonAttendedCourse> nonAttendedCourseList = jdbcTemplate.query("select Course.courseId,courseName,trainer,trainingMode,startDate,endDate,reason from Course,RejectedInvites where Course.courseId = RejectedInvites.courseId and Course.deleteStatus=false and Course.completionStatus='completed' and RejectedInvites.empId=? limit ?,?",(rs, rowNum) -> {
                 return new NonAttendedCourse(rs.getInt("courseId"),rs.getString("courseName"),rs.getString("trainer"),rs.getString("trainingMode"),rs.getDate("startDate"),rs.getDate("endDate"),rs.getString("reason"));
             },empId,offset,limit);
             if (nonAttendedCourseList.size()!=0)
@@ -270,7 +285,7 @@ public class EmployeeService
     //Get Count of Courses that employee has accepted the request based on completion status
     public int getCourseStatusCountForEmployee(String empId, String completionStatus)
     {
-        String query = "select count(AcceptedInvites.courseId) from AcceptedInvites, Course where AcceptedInvites.courseId = Course.courseId and Course.completionStatus = ? and empId = ? ";
+        String query = "select count(AcceptedInvites.courseId) from AcceptedInvites, Course where AcceptedInvites.courseId = Course.courseId and Course.completionStatus = ? and empId = ? and Course.deleteStatus=false and AcceptedInvites.deleteStatus = false";
         return jdbcTemplate.queryForObject(query, Integer.class,completionStatus,empId);
     }
 
