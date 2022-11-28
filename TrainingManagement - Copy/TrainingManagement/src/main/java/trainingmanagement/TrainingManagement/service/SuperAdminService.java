@@ -82,7 +82,6 @@ public class SuperAdminService
     {
         if ((employee.getEmpId().trim()).isEmpty())
         {
-            System.out.println((employee.getEmpId().trim()));
             throw new InvalidEmployeeDetailsException("Employee id cannot be null");
         }
         if ((employee.getEmpName().trim()).isEmpty())
@@ -173,7 +172,27 @@ public class SuperAdminService
             employeeExist(emp.getEmpId());
             checkEmployeeDeleted(emp.getEmpId());
             deleteEmployee(emp.getEmpId());
+            deleteFromEmployeeRoleOnEmpDelete(emp.getEmpId());
+            deleteFromInvitesOnEmpDelete(emp.getEmpId());
+            deleteFromAcceptedInvitesOnEmpDelete(emp.getEmpId());
         }
+    }
+    public void deleteFromEmployeeRoleOnEmpDelete(String empId)
+    {
+        String query = "delete from employee_role where emp_id=?";
+        jdbcTemplate.update(query,empId);
+    }
+
+    public void deleteFromInvitesOnEmpDelete(String empId)
+    {
+        String query = "delete from Invites where empId=? and courseId in(select courseId from Course where completionStatus='upcoming')";
+        jdbcTemplate.update(query,empId);
+    }
+
+    public void deleteFromAcceptedInvitesOnEmpDelete(String empId)
+    {
+        String query = "delete from AcceptedInvites where empId=? and courseId in(select courseId from Course where completionStatus='upcoming')";
+        jdbcTemplate.update(query,empId);
     }
 
     public void deleteEmployee(String empId) throws SuperAdminIdException

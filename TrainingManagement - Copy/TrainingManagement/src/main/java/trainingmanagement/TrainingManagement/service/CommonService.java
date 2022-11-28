@@ -5,6 +5,7 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import trainingmanagement.TrainingManagement.customException.CourseDeletionException;
 import trainingmanagement.TrainingManagement.customException.CourseNotValidException;
 import trainingmanagement.TrainingManagement.customException.EmployeeNotExistException;
 import trainingmanagement.TrainingManagement.customException.EmployeeNotUnderManagerException;
@@ -28,10 +29,10 @@ public class CommonService
     //for manager
     private String CHECK_COURSE_ALLOCATION = "SELECT courseId FROM ManagersCourses WHERE managerId=? AND courseId=?";
     private String GET_ATTENDEES_COUNT = "SELECT COUNT(empId) FROM Invites WHERE courseId=? AND Invites.inviteId NOT IN (SELECT RejectedInvites.inviteId FROM RejectedInvites)";
-    private String GET_NON_ATTENDEES_COUNT = "SELECT COUNT(empId) FROM Invites WHERE courseId=? AND Invites.inviteId IN (SELECT RejectedInvites.inviteId FROM RejectedInvites)";
+    private String GET_NON_ATTENDEES_COUNT = "SELECT COUNT(distinct empId) FROM Invites WHERE courseId=? AND Invites.inviteId IN (SELECT RejectedInvites.inviteId FROM RejectedInvites)";
     private String GET_COMPLETION_STATUS = "SELECT completionStatus FROM Course WHERE courseId=? and deleteStatus=false";
     private String GET_ATTENDEES = "SELECT emp_Id,emp_Name,designation,profile_pic FROM employee,Invites WHERE employee.emp_id<>'RT001' and employee.emp_id=Invites.empId AND Invites.courseId=? and employee.delete_status=false AND Invites.inviteId NOT IN (SELECT RejectedInvites.inviteId FROM RejectedInvites) LIMIT ?,?";
-    private String GET_NON_ATTENDEES = "SELECT emp_Id,emp_Name,designation,profile_pic FROM employee,RejectedInvites WHERE employee.emp_id<>'RT001' and employee.emp_id=RejectedInvites.empId AND RejectedInvites.courseId=? LIMIT ?,?";
+    private String GET_NON_ATTENDEES = "SELECT distinct emp_Id,emp_Name,designation,profile_pic FROM employee,RejectedInvites WHERE employee.emp_id<>'RT001' and employee.emp_id=RejectedInvites.empId AND RejectedInvites.courseId=? LIMIT ?,?";
     //to get role
     private String GET_ROLE = "SELECT role_name FROM employee_role WHERE emp_id=?";
 
@@ -93,7 +94,7 @@ public class CommonService
                 {
                     return "Attendees: "+attendeesCount;
                 }
-                int attendeesforCompletedCourse = jdbcTemplate.queryForObject("select count(empId) from acceptedInvites where courseId=? and deleteStatus=false",new Object[]{courseId}, Integer.class);
+                int attendeesforCompletedCourse = jdbcTemplate.queryForObject("select count(empId) from AcceptedInvites where courseId=? and deleteStatus=false",new Object[]{courseId}, Integer.class);
                 return "Attendees: "+attendeesforCompletedCourse+"\nNon Attendees: "+nonAttendeesCount;
             }
         }
@@ -315,8 +316,8 @@ public class CommonService
         }
     }
 
-    public List<EmployeeInvite> getEmployeesToInvite(int courseId,String empId) throws CourseNotValidException
-    {
+    public List<EmployeeInvite> getEmployeesToInvite(int courseId,String empId) throws CourseNotValidException, CourseDeletionException {
+        isCourseExist(courseId,false);
         isCourseIdValid(courseId);
         if(getRole((empId)).equalsIgnoreCase("admin"))
         {
@@ -418,8 +419,21 @@ public class CommonService
         }
         return "Invited successfully";
     }
-    public String inviteEmployees(int courseId,List<MultipleEmployeeRequest> inviteToEmployees, String empId) throws CourseNotValidException, EmployeeNotUnderManagerException, EmployeeNotExistException
+
+    public void isCourseExist(int courseId,boolean deleteStatus) throws CourseDeletionException
     {
+        String query="select courseId from Course where courseId=? and deleteStatus=?";
+        try
+        {
+            jdbcTemplate.queryForObject(query, Integer.class,courseId,deleteStatus);
+        }
+        catch (Exception e) {
+            throw new CourseDeletionException("Course does not");
+        }
+    }
+
+    public String inviteEmployees(int courseId,List<MultipleEmployeeRequest> inviteToEmployees, String empId) throws CourseNotValidException, EmployeeNotUnderManagerException, EmployeeNotExistException, CourseDeletionException {
+        isCourseExist(courseId,false);
         isCourseIdValid(courseId);
         checkEmployeesExist(inviteToEmployees);
         int noOfInvites = inviteToEmployees.size();

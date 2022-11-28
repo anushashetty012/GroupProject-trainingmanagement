@@ -63,10 +63,6 @@ public class AdminController
         {
             return new ResponseEntity<>(e.getMessage(),HttpStatus.INTERNAL_SERVER_ERROR);
         }
-        if (course1 == null)
-        {
-            return new ResponseEntity<>("Course is not created,please fill all the mandatory fields",HttpStatus.INTERNAL_SERVER_ERROR);
-        }
         return ResponseEntity.status(HttpStatus.OK).body(course1);
     }
 
@@ -105,7 +101,7 @@ public class AdminController
         Map<Integer,List<EmployeeInfo>> managers = adminRepository.getManagersBySearchkey(page,limit,searchKey);
         if (managers == null)
         {
-            return new ResponseEntity<>("No more managers in the company",HttpStatus.NOT_FOUND);
+            return new ResponseEntity<>("No match found",HttpStatus.NOT_FOUND);
         }
         return ResponseEntity.of(Optional.of(managers));
     }
