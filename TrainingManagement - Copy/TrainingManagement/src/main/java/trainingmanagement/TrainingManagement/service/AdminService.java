@@ -2,7 +2,10 @@ package trainingmanagement.TrainingManagement.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataAccessException;
+import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Repository;
 import trainingmanagement.TrainingManagement.customException.*;
 import trainingmanagement.TrainingManagement.entity.Course;
@@ -11,6 +14,8 @@ import trainingmanagement.TrainingManagement.request.ManagerEmployees;
 import trainingmanagement.TrainingManagement.request.MultipleEmployeeRequest;
 import trainingmanagement.TrainingManagement.response.CourseList;
 import trainingmanagement.TrainingManagement.response.EmployeeInfo;
+import trainingmanagement.TrainingManagement.response.EmployeesToManager;
+
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
@@ -22,8 +27,6 @@ import java.util.Map;
 @Repository
 public class AdminService
 {
-    private String TRAINING_COUNT = "SELECT COUNT(courseId) FROM Course WHERE completionStatus=? and deleteStatus=false";
-    private String GET_COURSE = "SELECT courseId,courseName,trainer,trainingMode,startDate,endDate,duration,startTime,endTime,completionStatus FROM Course WHERE completionStatus=? and deleteStatus=false limit ?,?";
     private String CREATE_COURSE = "INSERT INTO Course(courseName,trainer,trainingMode,startDate,endDate,duration,startTime,endTime,meetingInfo,startTimestamp,endTimestamp) values(?,?,?,?,?,?,?,?,?,?,?)";
 
     //allocate project manager
@@ -34,26 +37,8 @@ public class AdminService
 
     @Autowired
     JdbcTemplate jdbcTemplate;
-
-    public int getCourseCountByStatus(String status)
-    {
-        return jdbcTemplate.queryForObject(TRAINING_COUNT, new Object[]{status}, Integer.class);
-    }
-
-    public Map<Integer,List<CourseList>> getCourse(String completionStatus, int page, int limit)
-    {
-        Map map = new HashMap<Integer,List>();
-        offset = limit *(page-1);
-        List<CourseList> courses = jdbcTemplate.query(GET_COURSE,(rs, rowNum) -> {
-            return new CourseList(rs.getInt("courseId"),rs.getString("courseName"),rs.getString("trainer"),rs.getString("trainingMode"),rs.getDate("startDate"),rs.getDate("endDate"),rs.getTime("duration"),rs.getTime("startTime"),rs.getTime("endTime"),rs.getString("completionStatus"));
-        },completionStatus,offset,limit);
-        if (courses.size()!=0)
-        {
-            map.put(courses.size(),courses);
-            return map;
-        }
-        return null;
-    }
+    @Autowired
+    private JavaMailSender mailSender;
 
     public Timestamp createTimestamp(Date date, Time time)
     {
@@ -93,6 +78,39 @@ public class AdminService
         return null;
     }
 
+    public Map<Integer,List<EmployeeInfo>> getManagersToAssignCourse(int courseId, int page, int limit) throws CourseDeletionException
+    {
+        isCourseExist(courseId,false);
+        Map map = new HashMap<Integer,List>();
+        offset = limit *(page-1);
+        String query = "SELECT employee.emp_Id,emp_Name,designation FROM employee, employee_role WHERE employee.emp_id = employee_role.emp_id and employee_role.role_name='manager' AND employee.delete_status=false and employee_role.emp_id not in (select managerId from ManagersCourses where courseId=?) LIMIT ?,?";
+        List<EmployeeInfo> employeeDetails =  jdbcTemplate.query(query,(rs, rowNum) -> {
+            return new EmployeeInfo(rs.getString("emp_id"),rs.getString("emp_name"),rs.getString("designation"));
+        },courseId,offset,limit);
+        if (employeeDetails.size() != 0)
+        {
+            map.put(employeeDetails.size(),employeeDetails);
+            return map;
+        }
+        return null;
+    }
+
+    public Map<Integer,List<EmployeeInfo>> getManagersToAssignCourseBySearchkey(int courseId,int page, int limit, String searchKey)
+    {
+        String GET_MANAGERS = "SELECT employee.emp_id,emp_name,designation FROM employee, employee_role WHERE employee.emp_id = employee_role.emp_id and employee_role.role_name='manager' AND employee.delete_status=false and (employee.emp_id=? or employee.emp_name like ? or employee.designation like ?) and employee_role.emp_id not in (select managerId from ManagersCourses where courseId=?) LIMIT ?,?";
+        Map map = new HashMap<Integer,List>();
+        offset = limit *(page-1);
+        List<EmployeeInfo> employeeDetails =  jdbcTemplate.query(GET_MANAGERS,(rs, rowNum) -> {
+            return new EmployeeInfo(rs.getString("emp_id"),rs.getString("emp_name"),rs.getString("designation"));
+        },searchKey,"%"+searchKey+"%","%"+searchKey+"%",courseId,offset,limit);
+        if (employeeDetails.size() != 0)
+        {
+            map.put(employeeDetails.size(),employeeDetails);
+            return map;
+        }
+        return null;
+    }
+
     public Map<Integer,List<EmployeeInfo>> getManagers(int page, int limit)
     {
         Map map = new HashMap<Integer,List>();
@@ -124,32 +142,43 @@ public class AdminService
         return null;
     }
 
-    public String assignCourseToManager(int courseId, List<MultipleEmployeeRequest> courseToManager) throws ManagerNotExistException, SuperAdminIdException, EmployeeNotExistException, CourseDeletionException
+    public void checkValidityOfManagerList(List<MultipleEmployeeRequest> courseToManager,int courseId) throws SuperAdminIdException, ManagerNotExistException, EmployeeNotExistException, CourseAssignedForManagerException {
+        for (MultipleEmployeeRequest emp:courseToManager)
+        {
+            checkEmployeeExist(emp.getEmpId());
+            checkManagerExist(emp.getEmpId());
+            isSuperAdminId(emp.getEmpId());
+            isCourseAssignedToManager(emp.getEmpId(), courseId);
+        }
+    }
+    public void isCourseAssignedToManager(String empId,int courseId) throws CourseAssignedForManagerException
     {
-        int count=0;
+        String query = "select count(managerId) from ManagersCourses where managerId=? and courseId=?";
+        int count = jdbcTemplate.queryForObject(query, Integer.class,empId,courseId);
+        if (count!=0)
+        {
+            throw new CourseAssignedForManagerException("This course is already assigned");
+        }
+    }
+
+    public String assignCourseToManager(int courseId, List<MultipleEmployeeRequest> courseToManager) throws ManagerNotExistException, SuperAdminIdException, EmployeeNotExistException, CourseDeletionException, CourseAssignedForManagerException {
+        isCourseExist(courseId,false);
+        checkValidityOfManagerList(courseToManager,courseId);
         int noOfManagers = courseToManager.size();
         for (int i = 0; i < noOfManagers; i++)
         {
-            isCourseExist(courseId,false);
-            checkEmployeeExist(courseToManager.get(i).getEmpId());
-            checkManagerExist(courseToManager.get(i).getEmpId());
-            isSuperAdminId(courseToManager.get(i).getEmpId());
-            String query = "select managerId from ManagersCourses where managerId=? and courseId=?";
-            List<ManagersCourses> managerId = jdbcTemplate.query(query, (rs, rowNum) -> {
-                return new ManagersCourses(rs.getString("managerId"));
-            }, courseToManager.get(i).getEmpId(), courseId);
-            if (managerId.size() == 0)
-            {
-                jdbcTemplate.update(ASSIGN_MANAGER, new Object[]{courseToManager.get(i).getEmpId(), courseId});
-            }
-            else
-            {
-                count++;
-            }
-            if (count==noOfManagers)
-            {
-                return "This course is already allocated to this manager";
-            }
+            jdbcTemplate.update(ASSIGN_MANAGER, new Object[]{courseToManager.get(i).getEmpId(), courseId});
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom("spring.email.from@gmail.com");
+            String query = "select email from employee where emp_id=?";
+            String query1 = "select courseName from Course where courseId=?";
+            String email = jdbcTemplate.queryForObject(query, String.class,courseToManager.get(i).getEmpId());
+            message.setTo(email);
+            String courseName = jdbcTemplate.queryForObject(query1, String.class,courseId);
+            String emailText ="You have been assigned "+courseName+" course";
+            message.setText(emailText);
+            message.setSubject("Course assigned");
+            mailSender.send(message);
         }
         return "Course allocated successfully";
     }
@@ -327,14 +356,48 @@ public class AdminService
             throw new CourseInfoIntegrityException("Training mode is not valid");
         }
     }
+    public Map<Integer,List<EmployeesToManager>> employeesToAssignManager(String managerId, int page, int limit) throws EmployeeNotExistException, ManagerNotExistException, SuperAdminIdException {
+        checkEmployeeExist(managerId);
+        checkManagerExist(managerId);
+        isSuperAdminId(managerId);
+        Map map = new HashMap<Integer,List>();
+        offset = limit *(page-1);
+        String query = "select employee.emp_id, emp_name, designation, managerId from employee, Manager \n" +
+                "where employee.emp_id=Manager.empId and employee.emp_id<>'RT001' and employee.emp_id<>? and employee.delete_status=false\n" +
+                "and employee.emp_id not in (select empId from Manager where managerId=?) limit ?,?";
+        List<EmployeesToManager> employeeDetails =  jdbcTemplate.query(query,new BeanPropertyRowMapper<EmployeesToManager>(EmployeesToManager.class),managerId,managerId,offset,limit);
+        if (employeeDetails.size() != 0)
+        {
+            map.put(employeeDetails.size(),employeeDetails);
+            return map;
+        }
+        return null;
+    }
+
+    public void checkManagerValid(String managerId) throws EmployeeNotExistException, ManagerNotExistException, SuperAdminIdException {
+        checkEmployeeExist(managerId);
+        checkManagerExist(managerId);
+        isSuperAdminId(managerId);
+    }
+    public void checkValidityOfEmployeeList(String empId, String managerId) throws SuperAdminIdException, EmployeeNotExistException, ManagerEmployeeSameException {
+        isSuperAdminId(empId);
+        checkEmployeeExist(empId);
+        checkManagerIdAndEmployeeIdSame(empId,managerId);
+    }
+
+    public void checkValidityOfEmployeesList(ManagerEmployees managerEmployees) throws SuperAdminIdException, EmployeeNotExistException, ManagerEmployeeSameException {
+        for (String emp: managerEmployees.getEmpId())
+        {
+            checkValidityOfEmployeeList(emp,managerEmployees.getManagerId());
+        }
+    }
 
     //can't do anything if emplist contain super admin empId
     public void assignEmployeesToManager(ManagerEmployees managerEmployees) throws ManagerNotExistException, EmployeeNotExistException, ManagerEmployeeSameException, SuperAdminIdException
     {
         String managerId=managerEmployees.getManagerId();
-        checkEmployeeExist(managerId);
-        checkManagerExist(managerId);
-        isSuperAdminId(managerId);
+        checkManagerValid(managerId);
+        checkValidityOfEmployeesList(managerEmployees);
         if (managerEmployees.getEmpId()==null || managerEmployees.getEmpId().size()==0)
         {
             throw new EmployeeNotExistException("Employee Id list is empty");
@@ -347,9 +410,6 @@ public class AdminService
 
     public void updateEmployeesForManger(String empId,String managerId) throws EmployeeNotExistException, ManagerEmployeeSameException, SuperAdminIdException
     {
-        isSuperAdminId(empId);
-        checkEmployeeExist(empId);
-        checkManagerIdAndEmployeeIdSame(empId,managerId);
         String query="update Manager set managerId=? where empId=?";
         jdbcTemplate.update(query,managerId,empId);
     }

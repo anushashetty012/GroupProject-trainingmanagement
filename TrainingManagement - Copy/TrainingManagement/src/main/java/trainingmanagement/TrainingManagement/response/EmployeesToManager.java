@@ -3,13 +3,10 @@ package trainingmanagement.TrainingManagement.response;
 import lombok.Data;
 
 @Data
-public class EmployeeDetails
+public class EmployeesToManager
 {
     private String empId;
     private String empName;
     private String designation;
-    private Integer attendedCount;
-    private Integer upcomingCount;
-    private Integer activeCount;
-    private String role;
+    private String managerId;
 }
