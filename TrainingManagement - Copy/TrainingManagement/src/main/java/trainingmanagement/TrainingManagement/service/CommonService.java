@@ -423,7 +423,7 @@ public class CommonService
             for (int i=0; i<noOfInvites; i++)
             {
                 List<Employee> isInvited = jdbcTemplate.query("SELECT emp_id FROM employee,Invites WHERE employee.emp_id=? and employee.emp_id<>'RT001' and employee.emp_id=Invites.empId and courseId=? and (acceptanceStatus=true or acceptanceStatus is null)", (rs, rowNum) -> {
-                    return new Employee(rs.getString("emp_Id"));
+                    return new Employee(rs.getString("emp_id"));
                 }, inviteToEmployees.get(i).getEmpId(), courseId);
                 if (isInvited.size() == 0)
                 {
@@ -576,16 +576,20 @@ public class CommonService
     public List<EmployeeDetails> employeeDetailsListForAdmin(int offset,int limit)
     {
         String queryForEmployees = "SELECT employee.emp_id, emp_name, designation,role_name FROM employee,employee_role WHERE employee.emp_id=employee_role.emp_id and delete_status = 0 AND employee.emp_id <> 'RT001' limit ?,?";
-        List<EmployeeDetails> a = jdbcTemplate.query(queryForEmployees,new BeanPropertyRowMapper<EmployeeDetails>(EmployeeDetails.class),offset,limit);
+        List<EmployeeDetails> a = jdbcTemplate.query(queryForEmployees,(rs, rowNum) -> {
+            return new EmployeeDetails(rs.getString("emp_id"),rs.getString("emp_name"),rs.getString("designation"),rs.getString("role_name"));
+        }, offset, limit);
         return a;
     }
 
     //Gives List of Employees for Manager
     public List<EmployeeDetails> employeeDetailsListForManager(String managerId,int offset,int limit)
     {
-        String queryForEmployees = "SELECT emp_id, emp_name, designation,role_name FROM employee, Manager,employee_role WHERE employee.emp_id=employee_role.emp_id and employee.emp_id = Manager.empId and Manager.managerId = ? AND delete_status = 0 AND employee.emp_id <> 'RT001' limit ?,?";
+        String queryForEmployees = "SELECT employee.emp_id, emp_name, designation,role_name FROM employee, Manager,employee_role WHERE employee.emp_id=employee_role.emp_id and employee.emp_id = Manager.empId and Manager.managerId = ? AND delete_status = 0 AND employee.emp_id <> 'RT001' limit ?,?";
 
-        return jdbcTemplate.query(queryForEmployees,new BeanPropertyRowMapper<EmployeeDetails>(EmployeeDetails.class),managerId,offset,limit);
+        return jdbcTemplate.query(queryForEmployees,(rs, rowNum) -> {
+            return new EmployeeDetails(rs.getString("emp_id"),rs.getString("emp_name"),rs.getString("designation"),rs.getString("role_name"));
+        },managerId, offset, limit);
     }
 
     //Get Employee Course Status count
@@ -631,16 +635,20 @@ public class CommonService
     public List<EmployeeDetails> employeeDetailsListForAdminBySearchKey(String searchKey,int offset,int limit)
     {
 
-        String queryForEmployees = "SELECT emp_id, emp_name, designation FROM employee WHERE (emp_id = ? or emp_name like ? or designation like ?) and delete_status = 0 AND emp_id <> 'RT001' limit ?,?";
-        List<EmployeeDetails> a = jdbcTemplate.query(queryForEmployees,new BeanPropertyRowMapper<EmployeeDetails>(EmployeeDetails.class),searchKey,"%"+searchKey+"%","%"+searchKey+"%",offset,limit);
+        String queryForEmployees = "SELECT employee.emp_id, emp_name, designation,role_name FROM employee,employee_role WHERE employee.emp_id=employee_role.emp_id and (employee.emp_id = ? or emp_name like ? or designation like ?) and delete_status = 0 AND employee.emp_id <> 'RT001' limit ?,?";
+        List<EmployeeDetails> a = jdbcTemplate.query(queryForEmployees,(rs, rowNum) -> {
+            return new EmployeeDetails(rs.getString("emp_id"),rs.getString("emp_name"),rs.getString("designation"),rs.getString("role_name"));
+        },searchKey,"%"+searchKey+"%","%"+searchKey+"%",offset,limit);
         return a;
     }
 
     //Gives List of Employees for Manager
     public List<EmployeeDetails> employeeDetailsListForManagerBySearchKey(String managerId, String searchKey,int offset,int limit)
     {
-        String queryForEmployees = "SELECT emp_id, emp_name, designation FROM employee, Manager WHERE employee.emp_id = Manager.empId and (emp_id = ? or emp_name like ? or designation like ?) and Manager.managerId = ? AND delete_status = 0 AND employee.emp_id <> 'RT001' limit ?,?";
-        return jdbcTemplate.query(queryForEmployees,new BeanPropertyRowMapper<EmployeeDetails>(EmployeeDetails.class),searchKey,"%"+searchKey+"%","%"+searchKey+"%",managerId,offset,limit);
+        String queryForEmployees = "SELECT employee.emp_id, emp_name, designation,role_name FROM employee,employee_role, Manager WHERE employee.emp_id=employee_role.emp_id and employee.emp_id = Manager.empId and (employee.emp_id = ? or emp_name like ? or designation like ?) and Manager.managerId = ? AND delete_status = 0 AND employee.emp_id <> 'RT001' limit ?,?";
+        return jdbcTemplate.query(queryForEmployees,(rs, rowNum) -> {
+            return new EmployeeDetails(rs.getString("emp_id"),rs.getString("emp_name"),rs.getString("designation"),rs.getString("role_name"));
+        },searchKey,"%"+searchKey+"%","%"+searchKey+"%",managerId,offset,limit);
     }
 
     //Filter Course based on date and Completion status for Active and Upcoming
