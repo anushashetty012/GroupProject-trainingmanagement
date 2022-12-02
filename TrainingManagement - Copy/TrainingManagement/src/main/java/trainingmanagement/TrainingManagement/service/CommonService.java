@@ -130,7 +130,7 @@ public class CommonService
 
     public String getAttendeesAndNonAttendeesCount(int courseId,String empId)
     {
-        if(getRole((empId)).equalsIgnoreCase("admin") || getRole((empId)).equalsIgnoreCase("super_admin"))
+        if(getRole((empId)).equalsIgnoreCase("admin"))
         {
             String employeeCount = getAttendeesAndNonAttendeesForAdmin(courseId);
             return employeeCount;
@@ -575,7 +575,7 @@ public class CommonService
     //Gives List of Employees for Admin
     public List<EmployeeDetails> employeeDetailsListForAdmin(int offset,int limit)
     {
-        String queryForEmployees = "SELECT employee.emp_id, emp_name, designation,role_name FROM employee,employee_role WHERE employee.emp_id=employee_role.emp_id and delete_status = 0 AND employee.emp_id <> 'RT001' limit ?,?";
+        String queryForEmployees = "SELECT employee.emp_id, emp_name, designation,role_name FROM employee,employee_role WHERE employee.emp_id=employee_role.emp_id and delete_status = 0 AND employee.emp_id <> 'RT001' order by creation_timestamp limit ?,?";
         List<EmployeeDetails> a = jdbcTemplate.query(queryForEmployees,(rs, rowNum) -> {
             return new EmployeeDetails(rs.getString("emp_id"),rs.getString("emp_name"),rs.getString("designation"),rs.getString("role_name"));
         }, offset, limit);
@@ -585,7 +585,7 @@ public class CommonService
     //Gives List of Employees for Manager
     public List<EmployeeDetails> employeeDetailsListForManager(String managerId,int offset,int limit)
     {
-        String queryForEmployees = "SELECT employee.emp_id, emp_name, designation,role_name FROM employee, Manager,employee_role WHERE employee.emp_id=employee_role.emp_id and employee.emp_id = Manager.empId and Manager.managerId = ? AND delete_status = 0 AND employee.emp_id <> 'RT001' limit ?,?";
+        String queryForEmployees = "SELECT employee.emp_id, emp_name, designation,role_name FROM employee, Manager,employee_role WHERE employee.emp_id=employee_role.emp_id and employee.emp_id = Manager.empId and Manager.managerId = ? AND delete_status = 0 AND employee.emp_id <> 'RT001' order by creation_timestamp limit ?,?";
 
         return jdbcTemplate.query(queryForEmployees,(rs, rowNum) -> {
             return new EmployeeDetails(rs.getString("emp_id"),rs.getString("emp_name"),rs.getString("designation"),rs.getString("role_name"));
@@ -619,7 +619,7 @@ public class CommonService
         offset = limit *(page-1);
         String role = getRole(empId);
         List<EmployeeDetails> employeeDetails;
-        if(role.equals("admin"))
+        if(role.equals("admin") || role.equals("super_admin"))
         {
             employeeDetails= employeeDetailsListForAdminBySearchKey(searchKey,offset,limit);
         }

@@ -51,7 +51,7 @@ public class CommonController
     }
 
     @GetMapping("/attendees_nonAttendees_count/{courseId}")
-    @PreAuthorize("hasRole('admin') or hasRole('manager') or hasRole('super_admin')")
+    @PreAuthorize("hasRole('admin') or hasRole('manager')")
     public ResponseEntity<?> getAttendeesAndNonAttendeesCount(@PathVariable int courseId,Authentication authentication)
     {
         String employeeCount = commonService.getAttendeesAndNonAttendeesCount(courseId,authentication.getName());
@@ -161,7 +161,7 @@ public class CommonController
     }
 
     @GetMapping("/employees/search")
-    @PreAuthorize("hasRole('admin') or hasRole('manager')")
+    @PreAuthorize("hasRole('admin') or hasRole('manager') or hasRole('super_admin')")
     public ResponseEntity<?> getEmployeeListBySearchKey(Authentication authentication, @RequestParam String searchKey,@RequestParam int page, @RequestParam int limit)
     {
         String empId = authentication.getName();
