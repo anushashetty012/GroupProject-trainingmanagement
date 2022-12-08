@@ -88,7 +88,7 @@ public class AdminController
     @PreAuthorize("hasRole('admin')")
     public ResponseEntity<?> getManagersToAssignCourse(@PathVariable int courseId, @RequestParam int page, @RequestParam int limit)
     {
-        Map<Integer,List<EmployeeInfo>> managers;
+        Map<Integer,List<ManagerInfo>> managers;
         try
         {
             managers = adminRepository.getManagersToAssignCourse(courseId,page,limit);
@@ -108,7 +108,7 @@ public class AdminController
     @PreAuthorize("hasRole('admin')")
     public ResponseEntity<?> getManagersToAssignCourseBySearchKey(@PathVariable int courseId,@RequestParam int page, @RequestParam int limit,@RequestParam String searchKey)
     {
-        Map<Integer,List<EmployeeInfo>> managers = adminRepository.getManagersToAssignCourseBySearchkey(courseId,page,limit,searchKey);
+        Map<Integer,List<ManagerInfo>> managers = adminRepository.getManagersToAssignCourseBySearchkey(courseId,page,limit,searchKey);
         if (managers == null)
         {
             return new ResponseEntity<>("No match found",HttpStatus.OK);
@@ -193,6 +193,21 @@ public class AdminController
         {
             adminRepository.deleteCourse(courseId);
             return ResponseEntity.status(HttpStatus.OK).body("Deleted course successfully");
+        }
+        catch (Exception e)
+        {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        }
+    }
+
+    @PutMapping("/delete/reportees")
+    @PreAuthorize("hasRole('admin')")
+    public ResponseEntity<String> deleteReportees(@RequestBody ManagerEmployees managerEmployees)
+    {
+        try
+        {
+            adminRepository.removeReportee(managerEmployees);
+            return ResponseEntity.status(HttpStatus.OK).body("Deleted reportees successfully");
         }
         catch (Exception e)
         {
