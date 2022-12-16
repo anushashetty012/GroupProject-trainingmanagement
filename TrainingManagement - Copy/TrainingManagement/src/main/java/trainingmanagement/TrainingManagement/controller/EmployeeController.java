@@ -16,6 +16,9 @@ import java.util.Map;
 import java.util.Optional;
 
 @RestController
+@CrossOrigin(
+        methods = {RequestMethod.GET, RequestMethod.POST, RequestMethod.DELETE, RequestMethod.PUT, RequestMethod.PATCH},
+        origins = {"http://localhost:4200","https://thriving-croissant-5df179.netlify.app"})
 @RequestMapping("/employee")
 public class EmployeeController
 {
@@ -179,7 +182,7 @@ public class EmployeeController
         employeeService.reduceNotificationCount(inviteId);
     }
 
-    @PreAuthorize("hasRole('admin') or hasRole('manager') or hasRole('employee')")
+    @PreAuthorize("hasRole('admin') or hasRole('manager') or hasRole('employee') or hasRole('super_admin')")
     @PutMapping("/uploadProfilePhoto")
     public ResponseEntity<?> uploadIProfile(@RequestParam("file") MultipartFile file, Authentication authentication)
     {
@@ -198,7 +201,7 @@ public class EmployeeController
         return ResponseEntity.status(HttpStatus.OK).body(uploadResponse);
     }
 
-    @PreAuthorize("hasRole('admin') or hasRole('manager') or hasRole('employee')")
+    @PreAuthorize("hasRole('admin') or hasRole('manager') or hasRole('employee') or hasRole('super_admin')")
     @GetMapping("/viewProfilePhoto")
     public ResponseEntity<?> retrieveProfileLink(Authentication authentication) throws Exception
     {

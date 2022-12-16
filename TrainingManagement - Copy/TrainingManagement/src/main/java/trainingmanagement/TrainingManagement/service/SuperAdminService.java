@@ -86,6 +86,10 @@ public class SuperAdminService
         {
             throw new InvalidEmployeeDetailsException("Employee id cannot be null");
         }
+        if ((employee.getEmpId().trim()).length()!=6)
+        {
+            throw new InvalidEmployeeDetailsException("Employee id should be 6 characters");
+        }
         if ((employee.getEmpName().trim()).isEmpty())
         {
             throw new InvalidEmployeeDetailsException("Employee name cannot be null");
@@ -165,7 +169,23 @@ public class SuperAdminService
         message.setText(emailText);
         message.setSubject("Role changed");
         mailSender.send(message);
+        if (employeeRole.getRoleName().equalsIgnoreCase("employee")||employeeRole.getRoleName().equalsIgnoreCase("admin"))
+        {
+            updateManagerTable(employeeRole.getEmpId());
+            updateManagersCourseTable(employeeRole.getEmpId());
+        }
         return "Role of "+employeeRole.getEmpId()+" changed to "+employeeRole.getRoleName();
+    }
+
+    public void updateManagerTable(String managerId)
+    {
+        String query = "update Manager set managerId = null where managerId=?";
+        jdbcTemplate.update(query,managerId);
+    }
+    public void updateManagersCourseTable(String managerId)
+    {
+        String query = "delete from ManagersCourses where managerId=?";
+        jdbcTemplate.update(query,managerId);
     }
 
     public void employeeExist(String empId) throws EmployeeExistException

@@ -17,6 +17,9 @@ import java.util.Map;
 import java.util.Optional;
 
 @RestController
+@CrossOrigin(
+        methods = {RequestMethod.GET, RequestMethod.POST, RequestMethod.DELETE, RequestMethod.PUT, RequestMethod.PATCH},
+        origins = {"http://localhost:4200","https://thriving-croissant-5df179.netlify.app"})
 @RequestMapping("/admin")
 public class AdminController
 {
@@ -70,9 +73,9 @@ public class AdminController
     //search managers by search key- to allocate reportees
     @GetMapping("/managersBySearchKey")
     @PreAuthorize("hasRole('admin')")
-    public ResponseEntity<?> getManagersBySearchKey(@RequestParam int page, @RequestParam int limit,@RequestParam String searchKey)
+    public ResponseEntity<?> getManagersBySearchKey(@RequestParam String searchKey)
     {
-        Map<Integer,List<EmployeeInfo>> managers = adminRepository.getManagersBySearchkey(page,limit,searchKey);
+        List<EmployeeInfo> managers = adminRepository.getManagersBySearchkey(searchKey);
         if (managers == null)
         {
             return new ResponseEntity<>("No match found",HttpStatus.OK);
@@ -102,9 +105,9 @@ public class AdminController
 
     @GetMapping("/managersToAssignCourse/searchKey/{courseId}")
     @PreAuthorize("hasRole('admin')")
-    public ResponseEntity<?> getManagersToAssignCourseBySearchKey(@PathVariable int courseId,@RequestParam int page, @RequestParam int limit,@RequestParam String searchKey)
+    public ResponseEntity<?> getManagersToAssignCourseBySearchKey(@PathVariable int courseId,@RequestParam String searchKey)
     {
-        Map<Integer,List<ManagerInfo>> managers = adminRepository.getManagersToAssignCourseBySearchkey(courseId,page,limit,searchKey);
+        List<ManagerInfo> managers = adminRepository.getManagersToAssignCourseBySearchkey(courseId,searchKey);
         if (managers == null)
         {
             return new ResponseEntity<>("No match found",HttpStatus.OK);
@@ -127,6 +130,22 @@ public class AdminController
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Refresh the page and try again");
         }
         return ResponseEntity.of(Optional.of(assignStatus));
+    }
+
+    @PutMapping("/unassignCourseFromManager/{courseId}")
+    @PreAuthorize("hasRole('admin')")
+    public ResponseEntity<String> unassignCourseFromManager(@PathVariable int courseId, @RequestBody List<MultipleEmployeeRequest> courseToManager)
+    {
+        String unassignStatus;
+        try
+        {
+            unassignStatus = adminRepository.unassignCourseFromManager(courseId,courseToManager);
+        }
+        catch (Exception e)
+        {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        }
+        return ResponseEntity.of(Optional.of(unassignStatus));
     }
 
     @PutMapping("/update/course")
@@ -156,6 +175,26 @@ public class AdminController
         try
         {
             employees = adminRepository.employeesToAssignManager(managerId,page,limit);
+        }
+        catch (Exception e)
+        {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Refresh the page and try again");
+        }
+        if (employees == null)
+        {
+            return new ResponseEntity<>("No employees found",HttpStatus.OK);
+        }
+        return ResponseEntity.status(HttpStatus.OK).body(employees);
+    }
+
+    @GetMapping("/employeesToAssignManager/search/{managerId}")
+    @PreAuthorize("hasRole('admin')")
+    public ResponseEntity<?> employeesToAssignManagerBySearchKey(@PathVariable String managerId,@RequestParam String searchKey)
+    {
+        List<EmployeesToManager> employees;
+        try
+        {
+            employees = adminRepository.employeesToAssignManagerBySearchKey(managerId,searchKey);
         }
         catch (Exception e)
         {

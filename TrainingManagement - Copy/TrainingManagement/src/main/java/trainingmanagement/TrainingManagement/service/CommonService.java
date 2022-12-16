@@ -78,19 +78,23 @@ public class CommonService
         return jdbcTemplate.queryForObject(GET_ROLE,new Object[]{empId},String.class);
     }
 
-    public String getAttendeesAndNonAttendeesForAdmin(int courseId)
+    public AttendeesNonAttendeesCount getAttendeesAndNonAttendeesForAdmin(int courseId)
     {
         try
         {
             int attendeesCount = jdbcTemplate.queryForObject(GET_ATTENDEES_COUNT,new Object[]{courseId},Integer.class);
             int nonAttendeesCount = jdbcTemplate.queryForObject(GET_NON_ATTENDEES_COUNT,new Object[]{courseId},Integer.class);
             String completionStatus = jdbcTemplate.queryForObject(GET_COMPLETION_STATUS,new Object[]{courseId},String.class);
+            AttendeesNonAttendeesCount count = new AttendeesNonAttendeesCount();
             if (completionStatus.equalsIgnoreCase("active") || completionStatus.equalsIgnoreCase("upcoming"))
             {
-                return "Attendees: "+attendeesCount;
+                count.setAttendees(attendeesCount);
+                return count;
             }
             int attendeesforCompletedCourse = jdbcTemplate.queryForObject("select count(empId) from AcceptedInvites where courseId=? and deleteStatus=false",new Object[]{courseId}, Integer.class);
-            return "Attendees: "+attendeesforCompletedCourse+"\nNon Attendees: "+nonAttendeesCount;
+            count.setAttendees(attendeesforCompletedCourse);
+            count.setNonAttendees(nonAttendeesCount);
+            return count;
         }
         catch (DataAccessException e)
         {
@@ -98,7 +102,7 @@ public class CommonService
         }
     }
 
-    public String getAttendeesAndNonAttendeesForManager(int courseId, String empId)
+    public AttendeesNonAttendeesCount getAttendeesAndNonAttendeesForManager(int courseId, String empId)
     {
         try
         {
@@ -110,12 +114,16 @@ public class CommonService
                 int attendeesCount = jdbcTemplate.queryForObject(GET_ATTENDEES_COUNT,new Object[]{courseId},Integer.class);
                 int nonAttendeesCount = jdbcTemplate.queryForObject(GET_NON_ATTENDEES_COUNT,new Object[]{courseId},Integer.class);
                 String completionStatus = jdbcTemplate.queryForObject(GET_COMPLETION_STATUS,new Object[]{courseId},String.class);
+                AttendeesNonAttendeesCount count = new AttendeesNonAttendeesCount();
                 if (completionStatus.equalsIgnoreCase("active") || completionStatus.equalsIgnoreCase("upcoming"))
                 {
-                    return "Attendees: "+attendeesCount;
+                    count.setAttendees(attendeesCount);
+                    return count;
                 }
                 int attendeesforCompletedCourse = jdbcTemplate.queryForObject("select count(empId) from AcceptedInvites where courseId=? and deleteStatus=false",new Object[]{courseId}, Integer.class);
-                return "Attendees: "+attendeesforCompletedCourse+"\nNon Attendees: "+nonAttendeesCount;
+                count.setAttendees(attendeesforCompletedCourse);
+                count.setNonAttendees(nonAttendeesCount);
+                return count;
             }
         }
         catch (DataAccessException e)
@@ -125,16 +133,16 @@ public class CommonService
         return null;
     }
 
-    public String getAttendeesAndNonAttendeesCount(int courseId,String empId)
+    public AttendeesNonAttendeesCount getAttendeesAndNonAttendeesCount(int courseId,String empId)
     {
         if(getRole((empId)).equalsIgnoreCase("admin"))
         {
-            String employeeCount = getAttendeesAndNonAttendeesForAdmin(courseId);
+            AttendeesNonAttendeesCount employeeCount = getAttendeesAndNonAttendeesForAdmin(courseId);
             return employeeCount;
         }
         if (getRole((empId)).equalsIgnoreCase("manager"))
         {
-            String employeeCount = getAttendeesAndNonAttendeesForManager(courseId,empId);
+            AttendeesNonAttendeesCount employeeCount = getAttendeesAndNonAttendeesForManager(courseId,empId);
             return employeeCount;
         }
         return null;
@@ -327,16 +335,16 @@ public class CommonService
         List<EmployeeInvite> employeeList;
         List<EmployeeInvite> employeeList1;
         List<EmployeeInvite> employeeList2= new ArrayList<>();
-        String query = "SELECT emp_id,emp_name,designation FROM employee,Invites WHERE employee.emp_id<>'RT001' and employee.emp_id=Invites.empId and courseId=? and (employee.emp_id = ? or emp_name like ? or designation like ?) and (acceptanceStatus=true or acceptanceStatus is null) and delete_status=false";
+        String query = "SELECT emp_id,emp_name,designation FROM employee,Invites WHERE employee.emp_id<>'RT001' and employee.emp_id=Invites.empId and courseId=? and (employee.emp_id like ? or emp_name like ? or designation like ?) and (acceptanceStatus=true or acceptanceStatus is null) and delete_status=false";
         employeeList= jdbcTemplate.query(query,(rs, rowNum) -> {
             return new EmployeeInvite(rs.getString("emp_id"),rs.getString("emp_name"),rs.getString("designation"),true);
-        },courseId,searchKey,"%"+searchKey+"%","%"+searchKey+"%");
+        },courseId,"%"+searchKey+"%","%"+searchKey+"%","%"+searchKey+"%");
 
         //Employees who rejected the invites and employees who are not invited
-        String query1 = "SELECT emp_id,emp_name,designation FROM employee WHERE employee.emp_id<>'RT001' and (employee.emp_id = ? or emp_name like ? or designation like ?) and employee.emp_id NOT IN (SELECT Invites.empId FROM Invites WHERE courseId=? and (acceptanceStatus=true or acceptanceStatus is null)) and delete_status=false";
+        String query1 = "SELECT emp_id,emp_name,designation FROM employee WHERE employee.emp_id<>'RT001' and employee.emp_id NOT IN (SELECT Invites.empId FROM Invites WHERE courseId=? and (acceptanceStatus=true or acceptanceStatus is null)) and delete_status=false and (employee.emp_id like ? or emp_name like ? or designation like ?)";
         employeeList1 = jdbcTemplate.query(query1,(rs, rowNum) -> {
             return new EmployeeInvite(rs.getString("emp_id"),rs.getString("emp_name"),rs.getString("designation"),false);
-        },courseId,searchKey,"%"+searchKey+"%","%"+searchKey+"%");
+        },courseId,"%"+searchKey+"%","%"+searchKey+"%","%"+searchKey+"%");
         employeeList2.addAll(employeeList);
         employeeList2.addAll(employeeList1);
         return employeeList2;
@@ -354,19 +362,16 @@ public class CommonService
             }, empId, courseId);
             if (isCourseAssigned.size() != 0 )
             {
-                String query = "SELECT emp_id,emp_name,designation FROM employee,Manager,Invites WHERE employee.emp_id=Manager.empId and Manager.managerId=? and employee.emp_id<>'RT001' and employee.emp_id=Invites.empId and courseId=? and (employee.emp_id = ? or emp_name like ? or designation like ?) and (acceptanceStatus=true or acceptanceStatus is null) and delete_status=false";
+                String query = "SELECT emp_id,emp_name,designation FROM employee,Manager,Invites WHERE employee.emp_id=Manager.empId and Manager.managerId=? and employee.emp_id<>'RT001' and employee.emp_id=Invites.empId and courseId=? and (employee.emp_id like ? or emp_name like ? or designation like ?) and (acceptanceStatus=true or acceptanceStatus is null) and delete_status=false";
                 employeeList= jdbcTemplate.query(query,(rs, rowNum) -> {
                     return new EmployeeInvite(rs.getString("emp_id"),rs.getString("emp_name"),rs.getString("designation"),true);
-                },empId,courseId,searchKey,"%"+searchKey+"%","%"+searchKey+"%");
+                },empId,courseId,"%"+searchKey+"%","%"+searchKey+"%","%"+searchKey+"%");
 
                 //Employees who rejected the invites and employees who are not invited
-                String query1 = "SELECT emp_id,emp_name,designation FROM employee,Manager WHERE employee.emp_id=Manager.empId and Manager.managerId=? and employee.emp_id<>'RT001' " +
-                        "and (employee.emp_id = ? or emp_name like ? or designation like ?)"+
-                        "and employee.emp_id NOT IN (SELECT Invites.empId FROM Invites WHERE courseId=? and (acceptanceStatus=true or acceptanceStatus is null)) " +
-                        "and delete_status=false";
+                String query1 = "SELECT emp_id,emp_name,designation FROM employee,Manager WHERE employee.emp_id=Manager.empId and Manager.managerId=? and employee.emp_id<>'RT001' and employee.emp_id NOT IN (SELECT Invites.empId FROM Invites WHERE courseId=? and (acceptanceStatus=true or acceptanceStatus is null)) and delete_status=false and (employee.emp_id like ? or emp_name like ? or designation like ?)";
                 employeeList1 = jdbcTemplate.query(query1,(rs, rowNum) -> {
                     return new EmployeeInvite(rs.getString("emp_id"),rs.getString("emp_name"),rs.getString("designation"),false);
-                },empId,searchKey,"%"+searchKey+"%","%"+searchKey+"%",courseId);
+                },empId,"%"+searchKey+"%","%"+searchKey+"%","%"+searchKey+"%",courseId);
                 employeeList2.addAll(employeeList);
                 employeeList2.addAll(employeeList1);
                 return employeeList2;
@@ -701,20 +706,20 @@ public class CommonService
     public List<EmployeeDetails> employeeDetailsListForAdminBySearchKey(String searchKey,int offset,int limit)
     {
 
-        String queryForEmployees = "SELECT employee.emp_id, emp_name, designation,role_name FROM employee,employee_role WHERE employee.emp_id=employee_role.emp_id and (employee.emp_id = ? or emp_name like ? or designation like ?) and delete_status = 0 AND employee.emp_id <> 'RT001' order by creation_timestamp limit ?,?";
+        String queryForEmployees = "SELECT employee.emp_id, emp_name, designation,role_name FROM employee,employee_role WHERE employee.emp_id=employee_role.emp_id and (employee.emp_id like ? or emp_name like ? or designation like ?) and delete_status = 0 AND employee.emp_id <> 'RT001' order by creation_timestamp limit ?,?";
         List<EmployeeDetails> a = jdbcTemplate.query(queryForEmployees,(rs, rowNum) -> {
             return new EmployeeDetails(rs.getString("emp_id"),rs.getString("emp_name"),rs.getString("designation"),rs.getString("role_name"));
-        },searchKey,"%"+searchKey+"%","%"+searchKey+"%",offset,limit);
+        },"%"+searchKey+"%","%"+searchKey+"%","%"+searchKey+"%",offset,limit);
         return a;
     }
 
     //Gives List of Employees for Manager
     public List<EmployeeDetails> employeeDetailsListForManagerBySearchKey(String managerId, String searchKey,int offset,int limit)
     {
-        String queryForEmployees = "SELECT employee.emp_id, emp_name, designation,role_name FROM employee,employee_role, Manager WHERE employee.emp_id=employee_role.emp_id and employee.emp_id = Manager.empId and (employee.emp_id = ? or emp_name like ? or designation like ?) and Manager.managerId = ? AND delete_status = 0 AND employee.emp_id <> 'RT001' order by creation_timestamp limit ?,?";
+        String queryForEmployees = "SELECT employee.emp_id, emp_name, designation,role_name FROM employee,employee_role, Manager WHERE employee.emp_id=employee_role.emp_id and employee.emp_id = Manager.empId and (employee.emp_id like ? or emp_name like ? or designation like ?) and Manager.managerId = ? AND delete_status = 0 AND employee.emp_id <> 'RT001' order by creation_timestamp limit ?,?";
         return jdbcTemplate.query(queryForEmployees,(rs, rowNum) -> {
             return new EmployeeDetails(rs.getString("emp_id"),rs.getString("emp_name"),rs.getString("designation"),rs.getString("role_name"));
-        },searchKey,"%"+searchKey+"%","%"+searchKey+"%",managerId,offset,limit);
+        },"%"+searchKey+"%","%"+searchKey+"%","%"+searchKey+"%",managerId,offset,limit);
     }
 
     //Filter Course based on date and Completion status for Active and Upcoming
